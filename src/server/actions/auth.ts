@@ -67,7 +67,10 @@ export async function loginWithCredentials(formData: FormData) {
       redirectTo: callbackUrl,
     });
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message?.includes("NEXT_REDIRECT") || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
@@ -76,7 +79,8 @@ export async function loginWithCredentials(formData: FormData) {
           return { success: false, error: "Đăng nhập thất bại. Vui lòng kiểm tra lại." };
       }
     }
-    throw error;
+    console.error("Login unexpected error:", error);
+    return { success: false, error: "Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu." };
   }
 }
 
