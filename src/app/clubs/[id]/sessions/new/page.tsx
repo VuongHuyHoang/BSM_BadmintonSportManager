@@ -12,11 +12,34 @@ interface NewSessionPageProps {
   };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function NewSessionPage({ params }: NewSessionPageProps) {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
+  }
 
   if (!session?.user?.id) {
     redirect("/login");
+  }
+
+  // Kiểm tra quyền: Chỉ Trưởng nhóm (ADMIN) hoặc Thủ quỹ (TREASURER) mới được vào trang này
+  const currentLeader = await db.member.findFirst({
+    where: {
+      clubId: params.id,
+      userId: session.user.id,
+      role: { in: ["ADMIN", "TREASURER"] },
+      isActive: true,
+    },
+  });
+
+  if (!currentLeader) {
+    redirect(`/clubs/${params.id}`);
   }
 
   const club = await db.club.findUnique({
