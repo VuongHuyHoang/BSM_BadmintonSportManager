@@ -1,0 +1,186 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// NextAuth Models (Xác thực người dùng)
+// ----------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  phone         String?   @unique
+  passwordHash  String?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  memberships   Member[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ----------------------------------------------------
+// Badminton Sport Manager Core Domain Models
+// ----------------------------------------------------
+
+model Club {
+  id                  String             @id @default(cuid())
+  name                String
+  inviteCode          String             @unique @default(cuid()) @map("invite_code")
+  bankCode            String?            @map("bank_code")
+  bankAccountNo       String?            @map("bank_account_no")
+  bankAccountName     String?            @map("bank_account_name")
+  defaultShuttlePrice Int                @default(25000) @map("default_shuttle_price")
+  roundingMode        String             @default("CEIL_1K") @map("rounding_mode") // CEIL_1K, CEIL_5K, EXACT
+  
+  members             Member[]
+  sessions            BadmintonSession[]
+  transactions        Transaction[]
+
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  @@map("clubs")
+}
+
+model Member {
+  id               String              @id @default(cuid())
+  clubId           String              @map("club_id")
+  userId           String?             @map("user_id") // Nullable nếu Thủ quỹ thêm khách vãng lai thủ công
+  displayName      String              @map("display_name")
+  phone            String?
+  role             String              @default("MEMBER") // ADMIN, TREASURER, MEMBER
+  membershipType   String              @default("PAY_PER_SESSION") @map("membership_type") // FULL_MONTHLY, COURT_ONLY_MONTHLY, PAY_PER_SESSION, GUEST
+  monthlyFeeAmount Int?                @map("monthly_fee_amount")
+  isActive         Boolean             @default(true) @map("is_active")
+
+  club             Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user             User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  attendances      SessionAttendance[]
+  transactions     Transaction[]
+
+  joinedAt         DateTime            @default(now()) @map("joined_at")
+
+  @@map("members")
+}
+
+model BadmintonSession {
+  id           String              @id @default(cuid())
+  clubId       String              @map("club_id")
+  startTime    DateTime            @map("start_time")
+  endTime      DateTime            @map("end_time")
+  courtName    String              @map("court_name")
+  courtFee     Int                 @default(0) @map("court_fee")
+  otherFee     Int                 @default(0) @map("other_fee")
+  status       String              @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
+
+  club         Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  shuttleLogs  ShuttleLog[]
+  attendances  SessionAttendance[]
+  transactions Transaction[]
+
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  @@map("badminton_sessions")
+}
+
+model ShuttleLog {
+  id          String           @id @default(cuid())
+  sessionId   String           @map("session_id")
+  brand       String           @default("Tiêu chuẩn")
+  quantity    Int              @default(0) // Số quả đã bung hộp dùng
+  unitPrice   Int              @default(25000) @map("unit_price") // Đơn giá 1 quả
+  totalAmount Int              @default(0) @map("total_amount")
+
+  session     BadmintonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("shuttle_logs")
+}
+
+model SessionAttendance {
+  id              String           @id @default(cuid())
+  sessionId       String           @map("session_id")
+  memberId        String           @map("member_id")
+  checkInBy       String           @default("SELF") @map("check_in_by") // SELF, TREASURER
+  courtFeeShare   Int              @default(0) @map("court_fee_share")
+  shuttleFeeShare Int              @default(0) @map("shuttle_fee_share")
+  extraFeeShare   Int              @default(0) @map("extra_fee_share")
+  totalAmount     Int              @default(0) @map("total_amount")
+  paymentStatus   String           @default("UNPAID") @map("payment_status") // UNPAID, PAID, COVERED_BY_SUBSCRIPTION
+  paidAt          DateTime?        @map("paid_at")
+  confirmedBy     String?          @map("confirmed_by")
+
+  session         BadmintonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  member          Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, memberId])
+  @@map("session_attendances")
+}
+
+model Transaction {
+  id          String            @id @default(cuid())
+  clubId      String            @map("club_id")
+  memberId    String?           @map("member_id")
+  sessionId   String?           @map("session_id")
+  type        String            // INCOME (Thu), EXPENSE (Chi)
+  category    String            // SESSION_FEE, MONTHLY_FUND, BUY_SHUTTLE, COURT_DEPOSIT, OTHER
+  amount      Int
+  description String
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  club        Club              @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  member      Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  session     BadmintonSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@map("transactions")
+}
