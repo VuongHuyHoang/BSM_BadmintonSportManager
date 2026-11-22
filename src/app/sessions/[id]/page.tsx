@@ -6,6 +6,7 @@ import { Navbar } from "@/components/navbar";
 import { ShuttleCounter } from "@/components/session/shuttle-counter";
 import { AttendanceBoard } from "@/components/session/attendance-board";
 import { ExtraFeeWidget } from "@/components/session/extra-fee-widget";
+import { ExtendDurationWidget } from "@/components/session/extend-duration-widget";
 import { formatVND } from "@/lib/utils";
 import { updateSessionStatus } from "@/server/actions/session";
 import { 
@@ -65,12 +66,19 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
   const totalCost = session.courtFee + shuttleLog.totalAmount + session.otherFee;
   const checkedInCount = session.attendances.filter((a) => a.isCheckedIn).length;
 
+  const durationHours = Math.round(((session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)) * 10) / 10;
+
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("vi-VN", {
       weekday: "long",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+    }).format(date);
+  };
+
+  const formatTime = (date: Date) => {
+    return new Intl.DateTimeFormat("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
     }).format(date);
@@ -94,9 +102,9 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
         <div className="bg-white border border-black rounded-[24px] p-6 sm:p-8 shadow-[6px_6px_0px_#000000] mb-6">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span
-                  className={`px-3 py-0.5 rounded-full text-xs font-black border border-black uppercase ${
+                  className={`px-3 py-0.5 rounded-full text-xs font-black border border-black uppercase shrink-0 whitespace-nowrap ${
                     session.status === "ONGOING"
                       ? "bg-[#55db9c] text-black animate-pulse"
                       : session.status === "COMPLETED"
@@ -113,25 +121,45 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
                 <span className="text-xs font-bold text-zinc-600">
                   {session.club.name}
                 </span>
+                {session.hasExtendedDuration && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-[#e9ccff] text-black border border-black shrink-0 whitespace-nowrap">
+                    Đã Gia Hạn Giờ
+                  </span>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-black leading-tight">
                 {session.courtName}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs font-semibold text-zinc-600 mt-2">
+              {/* Mô tả thời gian bao gồm số giờ đánh & khoảng giờ */}
+              <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-xs font-semibold text-zinc-600 mt-2">
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
-                  {formatDate(session.startTime)}
+                  <span>{formatDate(session.startTime)}</span>
+                </span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1 bg-[#f1f3f6] px-2 py-0.5 rounded-md border border-black/15 font-black text-black">
+                  <Clock className="w-3.5 h-3.5 text-[#5c4ade]" />
+                  <span>{durationHours} giờ ({formatTime(session.startTime)} - {formatTime(session.endTime)})</span>
                 </span>
                 <span>·</span>
                 <span>Tiền sân: {formatVND(session.courtFee)}</span>
               </div>
             </div>
 
-            {/* Leader Status Actions */}
+            {/* Leader Actions */}
             {isLeader && (
               <div className="flex flex-wrap items-center gap-2">
+                {/* Gia hạn giờ đánh (Tối đa 1 lần) */}
+                <ExtendDurationWidget
+                  sessionId={session.id}
+                  hasExtendedDuration={session.hasExtendedDuration}
+                  currentCourtFee={session.courtFee}
+                  currentDurationHours={durationHours}
+                  isLeader={isLeader}
+                />
+
                 {session.status === "SCHEDULED" && (
                   <form
                     action={async () => {
@@ -209,7 +237,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
 
               <div className="space-y-2 text-xs font-semibold mb-4">
                 <div className="flex justify-between">
-                  <span className="text-zinc-600">Tiền sân:</span>
+                  <span className="text-zinc-600">Tiền sân ({durationHours} giờ):</span>
                   <span className="font-bold text-black">{formatVND(session.courtFee)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -221,7 +249,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
                   <span className="font-bold text-black">{formatVND(session.otherFee)}</span>
                 </div>
                 <div className="pt-2 border-t border-black/10 flex justify-between items-center text-sm font-black">
-                  <span>Tổng Chi Phí:</span>
+                  <span>Tổng Chi Phí ({durationHours} giờ):</span>
                   <span className="text-base text-black">{formatVND(totalCost)}</span>
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-zinc-500">

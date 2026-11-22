@@ -213,26 +213,26 @@ export function MemberManagement({
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-9 w-9 rounded-full bg-[#f1f3f6] border border-black flex items-center justify-center font-black text-sm shadow-[1px_1px_0px_#000000]">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="h-9 w-9 rounded-full bg-[#f1f3f6] border border-black flex items-center justify-center font-black text-sm shadow-[1px_1px_0px_#000000] shrink-0">
                       {m.displayName.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <h4 className="text-sm font-black text-black leading-tight">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-black text-black leading-tight break-words" title={m.displayName}>
                         {m.displayName}
                       </h4>
                       {m.phone && (
                         <span className="text-[11px] text-zinc-500 font-medium flex items-center gap-1 mt-0.5">
-                          <Phone className="w-3 h-3" />
-                          {m.phone}
+                          <Phone className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{m.phone}</span>
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Role Badge */}
+                  {/* Role Badge - Cố định không bao giờ bị rớt dòng */}
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-black border border-black uppercase ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border border-black uppercase shrink-0 whitespace-nowrap shadow-[1px_1px_0px_#000000] ${
                       m.role === "ADMIN"
                         ? "bg-[#ffd731] text-black"
                         : m.role === "TREASURER"
@@ -245,9 +245,9 @@ export function MemberManagement({
                 </div>
 
                 {/* Membership Package Tag */}
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <span
-                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-black border border-black ${
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-black border border-black shrink-0 whitespace-nowrap ${
                       m.membershipType === "FULL_MONTHLY"
                         ? "bg-[#e9ccff] text-black"
                         : m.membershipType === "COURT_ONLY_MONTHLY"

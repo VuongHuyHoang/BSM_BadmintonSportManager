@@ -120,9 +120,10 @@ model BadmintonSession {
   startTime    DateTime            @map("start_time")
   endTime      DateTime            @map("end_time")
   courtName    String              @map("court_name")
-  courtFee     Int                 @default(0) @map("court_fee")
-  otherFee     Int                 @default(0) @map("other_fee")
-  status       String              @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
+  courtFee            Int                 @default(0) @map("court_fee")
+  otherFee            Int                 @default(0) @map("other_fee")
+  status              String              @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
+  hasExtendedDuration Boolean             @default(false) @map("has_extended_duration")
 
   club         Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
   shuttleLogs  ShuttleLog[]

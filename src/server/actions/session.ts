@@ -280,3 +280,60 @@ export async function updateSessionStatus(
     return { success: false, error: "Lỗi cập nhật trạng thái buổi đánh." };
   }
 }
+
+export async function extendSessionDuration(
+  sessionId: string,
+  addedHours: number,
+  additionalCourtFee: number
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const existing = await db.badmintonSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      club: {
+        include: { members: true },
+      },
+    },
+  });
+
+  if (!existing) {
+    return { success: false, error: "Không tìm thấy buổi đánh." };
+  }
+
+  const actor = existing.club.members.find((m) => m.userId === session.user?.id);
+  if (!actor || (actor.role !== "ADMIN" && actor.role !== "TREASURER")) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền gia hạn giờ chơi." };
+  }
+
+  if (existing.hasExtendedDuration) {
+    return {
+      success: false,
+      error: "Buổi đánh này đã được điều chỉnh giờ 1 lần trước đó. Tối đa chỉ được thay đổi 1 lần để đảm bảo minh bạch.",
+    };
+  }
+
+  const newEndTime = new Date(existing.endTime.getTime() + addedHours * 60 * 60 * 1000);
+  const newCourtFee = existing.courtFee + Math.max(0, additionalCourtFee);
+
+  try {
+    await db.badmintonSession.update({
+      where: { id: sessionId },
+      data: {
+        endTime: newEndTime,
+        courtFee: newCourtFee,
+        hasExtendedDuration: true,
+      },
+    });
+
+    revalidatePath(`/sessions/${sessionId}`);
+    revalidatePath(`/clubs/${existing.clubId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Extend session duration error:", error);
+    return { success: false, error: "Lỗi khi cập nhật thời gian đánh thêm." };
+  }
+}

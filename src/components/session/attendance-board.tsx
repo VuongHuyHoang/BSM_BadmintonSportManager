@@ -247,14 +247,14 @@ export function AttendanceBoard({
                 a.isCheckedIn ? "bg-[#f0fdf4]" : "hover:bg-zinc-50"
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 {/* Check-in toggle indicator / button */}
                 {isLeader ? (
                   <button
                     type="button"
                     disabled={loadingMemberId === a.memberId}
                     onClick={() => handleToggle(a.memberId, a.isCheckedIn, false)}
-                    className="p-1 rounded-lg focus:outline-none hover:scale-110 transition-transform"
+                    className="p-1 rounded-lg focus:outline-none hover:scale-110 transition-transform shrink-0"
                     title={a.isCheckedIn ? "Bấm để đánh dấu Vắng" : "Bấm để điểm danh Có mặt"}
                   >
                     {a.isCheckedIn ? (
@@ -264,7 +264,7 @@ export function AttendanceBoard({
                     )}
                   </button>
                 ) : (
-                  <div>
+                  <div className="shrink-0">
                     {a.isCheckedIn ? (
                       <CheckCircle2 className="w-6 h-6 text-[#16a34a] fill-[#55db9c]" />
                     ) : (
@@ -273,21 +273,21 @@ export function AttendanceBoard({
                   </div>
                 )}
 
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-black">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-black text-black break-words">
                       {a.member.displayName}
                     </span>
                     {isMe && (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-[#ffd731] border border-black">
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-[#ffd731] border border-black shrink-0 whitespace-nowrap">
                         Bạn
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span
-                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded border border-black/30 ${
+                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded border border-black/30 shrink-0 whitespace-nowrap ${
                         a.member.membershipType === "FULL_MONTHLY"
                           ? "bg-[#e9ccff] text-black"
                           : a.member.membershipType === "COURT_ONLY_MONTHLY"
@@ -307,7 +307,7 @@ export function AttendanceBoard({
                     </span>
 
                     {a.member.phone && (
-                      <span className="text-[10px] text-zinc-500 font-medium">
+                      <span className="text-[10px] text-zinc-500 font-medium truncate">
                         {a.member.phone}
                       </span>
                     )}
@@ -316,9 +316,9 @@ export function AttendanceBoard({
               </div>
 
               {/* Status Badge */}
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-black uppercase border border-black shadow-[1px_1px_0px_#000000] inline-block ${
+                  className={`px-2.5 py-1 rounded-full text-xs font-black uppercase border border-black shadow-[1px_1px_0px_#000000] inline-block shrink-0 whitespace-nowrap ${
                     a.isCheckedIn
                       ? "bg-[#55db9c] text-black"
                       : "bg-[#f1f3f6] text-zinc-500"
