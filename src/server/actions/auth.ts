@@ -52,12 +52,12 @@ export async function registerUser(formData: FormData) {
 }
 
 export async function loginWithCredentials(formData: FormData) {
-  const email = (formData.get("email") as string)?.toLowerCase().trim();
-  const password = formData.get("password") as string;
+  const email = (formData.get("email") as string)?.trim();
+  const password = (formData.get("password") as string) || "";
   const callbackUrl = (formData.get("callbackUrl") as string) || "/dashboard";
 
   if (!email || !password) {
-    return { success: false, error: "Vui lòng nhập email và mật khẩu." };
+    return { success: false, error: "Vui lòng nhập email hoặc số điện thoại và mật khẩu." };
   }
 
   try {
@@ -74,13 +74,13 @@ export async function loginWithCredentials(formData: FormData) {
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
-          return { success: false, error: "Email hoặc mật khẩu không chính xác." };
+          return { success: false, error: "Email/Số điện thoại hoặc mật khẩu không chính xác." };
         default:
-          return { success: false, error: "Đăng nhập thất bại. Vui lòng kiểm tra lại." };
+          return { success: false, error: "Đăng nhập thất bại. Vui lòng thử lại." };
       }
     }
     console.error("Login unexpected error:", error);
-    return { success: false, error: "Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu." };
+    return { success: false, error: "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin tài khoản." };
   }
 }
 
