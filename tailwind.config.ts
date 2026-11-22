@@ -40,7 +40,21 @@ const config: Config = {
       },
       minWidth: {
         'touch': '44px',
-      }
+      },
+      keyframes: {
+        'marquee-ltr': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0%)' },
+        },
+        'marquee-rtl': {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-100%)' },
+        },
+      },
+      animation: {
+        'marquee-ltr': 'marquee-ltr 30s linear infinite',
+        'marquee-rtl': 'marquee-rtl 30s linear infinite',
+      },
     },
   },
   plugins: [],

@@ -28,3 +28,24 @@ select {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* Hiệu ứng Marquee chạy mượt mà vô tận */
+@keyframes marquee-ltr {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-marquee-ltr {
+  display: flex;
+  flex-shrink: 0;
+  animation: marquee-ltr 35s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-ltr:hover {
+  animation-play-state: paused;
+}

@@ -18,10 +18,35 @@ import {
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#dceeff] text-black">
-      {/* 1. Marquee Top Strip (Slush Signature Element) */}
-      <div className="bg-black text-white py-2 px-4 border-b border-black overflow-hidden whitespace-nowrap select-none">
-        <div className="inline-block animate-marquee text-[11px] font-bold uppercase tracking-[0.2em]">
-          🏸 BSM SPORT MANAGER · ĐIỂM DANH 2 CHIỀU TẠI SÂN · TỰ ĐỘNG CHIA BILL SÂN & CẦU · QUÉT MÃ VIETQR NAPAS247 1 CHẠM · SỔ QUỸ MINH BẠCH 100% · KHÔNG CÒN NỖI LO TÍNH TIỀN · 🏸 BSM SPORT MANAGER · ĐIỂM DANH 2 CHIỀU TẠI SÂN · TỰ ĐỘNG CHIA BILL SÂN & CẦU · QUÉT MÃ VIETQR NAPAS247 1 CHẠM ·
+      {/* 1. Marquee Top Strip (Slush Signature Element - Infinite LTR Smooth Scrolling) */}
+      <div className="bg-black text-white py-2.5 border-b border-black overflow-hidden select-none relative flex">
+        <div className="flex shrink-0 animate-marquee-ltr items-center gap-6 whitespace-nowrap text-[11px] font-extrabold uppercase tracking-[0.2em] pr-6">
+          <span>🏸 BSM SPORT MANAGER</span>
+          <span className="text-[#ffd731]">·</span>
+          <span>ĐIỂM DANH 2 CHIỀU TẠI SÂN</span>
+          <span className="text-[#55db9c]">·</span>
+          <span>TỰ ĐỘNG CHIA BILL SÂN & CẦU</span>
+          <span className="text-[#4da2ff]">·</span>
+          <span>QUÉT MÃ VIETQR NAPAS247 1 CHẠM</span>
+          <span className="text-[#5c4ade]">·</span>
+          <span>SỔ QUỸ MINH BẠCH 100%</span>
+          <span className="text-[#fb4903]">·</span>
+          <span>KHÔNG CÒN NỖI LO TÍNH TIỀN</span>
+          <span className="text-[#e9ccff]">·</span>
+        </div>
+        <div className="flex shrink-0 animate-marquee-ltr items-center gap-6 whitespace-nowrap text-[11px] font-extrabold uppercase tracking-[0.2em] pr-6" aria-hidden="true">
+          <span>🏸 BSM SPORT MANAGER</span>
+          <span className="text-[#ffd731]">·</span>
+          <span>ĐIỂM DANH 2 CHIỀU TẠI SÂN</span>
+          <span className="text-[#55db9c]">·</span>
+          <span>TỰ ĐỘNG CHIA BILL SÂN & CẦU</span>
+          <span className="text-[#4da2ff]">·</span>
+          <span>QUÉT MÃ VIETQR NAPAS247 1 CHẠM</span>
+          <span className="text-[#5c4ade]">·</span>
+          <span>SỔ QUỸ MINH BẠCH 100%</span>
+          <span className="text-[#fb4903]">·</span>
+          <span>KHÔNG CÒN NỖI LO TÍNH TIỀN</span>
+          <span className="text-[#e9ccff]">·</span>
         </div>
       </div>
 
