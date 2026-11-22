@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatVND } from "@/lib/utils";
 import { 
   toggleCheckIn, 
@@ -65,6 +65,11 @@ export function AttendanceBoard({
   currentUserId,
   isLeader,
 }: AttendanceBoardProps) {
+  const [localAttendees, setLocalAttendees] = useState(attendees);
+  useEffect(() => {
+    setLocalAttendees(attendees);
+  }, [attendees]);
+
   const [loadingMemberId, setLoadingMemberId] = useState<string | null>(null);
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [guestName, setGuestName] = useState("");
@@ -76,21 +81,42 @@ export function AttendanceBoard({
 
   // Tìm xem người đang đăng nhập có trong danh sách buổi đánh này không
   const myAttendance = currentUserId
-    ? attendees.find((a) => a.member.userId === currentUserId)
+    ? localAttendees.find((a) => a.member.userId === currentUserId)
     : null;
 
   // Lọc ra các hội viên CLB chưa có trong danh sách buổi đánh
-  const attendeeMemberIds = new Set(attendees.map((a) => a.memberId));
+  const attendeeMemberIds = new Set(localAttendees.map((a) => a.memberId));
   const availableClubMembers = allClubMembers.filter(
     (m) => !attendeeMemberIds.has(m.id)
   );
 
-  const checkedInCount = attendees.filter((a) => a.isCheckedIn).length;
+  const checkedInCount = localAttendees.filter((a) => a.isCheckedIn).length;
 
   const handleToggle = async (memberId: string, currentStatus: boolean, isSelf: boolean) => {
+    const nextStatus = !currentStatus;
+    // Optimistic UI: Phản hồi tức thời 0ms trên màn hình
+    setLocalAttendees((prev) =>
+      prev.map((a) =>
+        a.memberId === memberId
+          ? { ...a, isCheckedIn: nextStatus, checkInBy: isSelf ? "SELF" : "TREASURER" }
+          : a
+      )
+    );
+
     setLoadingMemberId(memberId);
-    await toggleCheckIn(sessionId, memberId, !currentStatus, isSelf ? "SELF" : "TREASURER");
+    const res = await toggleCheckIn(sessionId, memberId, nextStatus, isSelf ? "SELF" : "TREASURER");
     setLoadingMemberId(null);
+    if (!res?.success) {
+      // Rollback nếu thất bại
+      setLocalAttendees((prev) =>
+        prev.map((a) =>
+          a.memberId === memberId
+            ? { ...a, isCheckedIn: currentStatus }
+            : a
+        )
+      );
+      alert(res?.error || "Lỗi cập nhật điểm danh.");
+    }
   };
 
   const handleAddMember = async (memberId: string) => {
@@ -132,7 +158,7 @@ export function AttendanceBoard({
 
         <div className="flex items-center gap-2">
           <div className="px-3 py-1.5 rounded-full text-xs font-black bg-[#55db9c] text-black border border-black shadow-[2px_2px_0px_#000000]">
-            Đã đến: {checkedInCount} / {attendees.length} người
+            Đã đến: {checkedInCount} / {localAttendees.length} người
           </div>
         </div>
       </div>
@@ -249,7 +275,7 @@ export function AttendanceBoard({
 
       {/* 5. Attendees List */}
       <div className="divide-y divide-black/10">
-        {attendees.map((a) => {
+        {localAttendees.map((a) => {
           const isMe = currentUserId && a.member.userId === currentUserId;
           const aggregated = aggregateExtraItems(a.extraItems || []);
           const totalExtra = aggregated.reduce((acc, curr) => acc + curr.totalPrice, 0);
@@ -394,7 +420,7 @@ export function AttendanceBoard({
           attendanceId={selectedModalAttendee.id}
           displayName={selectedModalAttendee.member.displayName}
           extraItems={
-            attendees.find((x) => x.id === selectedModalAttendee.id)?.extraItems || []
+            localAttendees.find((x) => x.id === selectedModalAttendee.id)?.extraItems || []
           }
           isLeader={isLeader}
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatVND, generateVietQRUrl, removeVietnameseAccents } from "@/lib/utils";
 import { 
@@ -89,6 +89,11 @@ export function SplitBillView({
   currentUserId,
   isLeader,
 }: SplitBillViewProps) {
+  const [localAttendances, setLocalAttendances] = useState(session.attendances);
+  useEffect(() => {
+    setLocalAttendances(session.attendances);
+  }, [session.attendances]);
+
   const [filter, setFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(false);
   const [actionAttendanceId, setActionAttendanceId] = useState<string | null>(null);
@@ -106,7 +111,7 @@ export function SplitBillView({
 
   // Thống kê cơ bản
   const shuttleLog = session.shuttleLogs[0] || { quantity: 0, unitPrice: session.club.defaultShuttlePrice, totalAmount: 0 };
-  const checkedInAttendees = session.attendances.filter((a) => a.isCheckedIn);
+  const checkedInAttendees = localAttendances.filter((a) => a.isCheckedIn);
   
   // Tổng phụ phí riêng
   const totalPersonalExtra = checkedInAttendees.reduce((acc, a) => {
@@ -154,10 +159,26 @@ export function SplitBillView({
   // Xác nhận nộp tiền (Toggle PAID / UNPAID)
   const handleTogglePayment = async (attendanceId: string, currentStatus: string) => {
     if (!isLeader) return;
-    setActionAttendanceId(attendanceId);
     const newStatus = currentStatus === "PAID" ? "UNPAID" : "PAID";
-    await togglePaymentStatus(attendanceId, newStatus);
+    // Optimistic UI: Phản hồi lập tức 0ms
+    setLocalAttendances((prev) =>
+      prev.map((a) =>
+        a.id === attendanceId ? { ...a, paymentStatus: newStatus } : a
+      )
+    );
+
+    setActionAttendanceId(attendanceId);
+    const res = await togglePaymentStatus(attendanceId, newStatus);
     setActionAttendanceId(null);
+    if (!res?.success) {
+      // Rollback
+      setLocalAttendances((prev) =>
+        prev.map((a) =>
+          a.id === attendanceId ? { ...a, paymentStatus: currentStatus } : a
+        )
+      );
+      alert(res?.error || "Lỗi cập nhật trạng thái thanh toán.");
+    }
   };
 
   // Format ngày giờ ngắn gọn

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatVND } from "@/lib/utils";
 import { updateShuttleCount } from "@/server/actions/session";
 import { Plus, Minus, Package, Sparkles } from "lucide-react";
@@ -19,19 +19,22 @@ export function ShuttleCounter({
   isLeader,
 }: ShuttleCounterProps) {
   const [quantity, setQuantity] = useState(initialQuantity);
-  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setQuantity(initialQuantity);
+  }, [initialQuantity]);
 
   const handleUpdate = async (delta: number) => {
-    if (!isLeader || loading) return;
-    const target = Math.max(0, quantity + delta);
+    if (!isLeader) return;
+    const prev = quantity;
+    const target = Math.max(0, prev + delta);
+    // Optimistic UI: Phản hồi tức thì 0ms
     setQuantity(target);
-    setLoading(true);
 
     const res = await updateShuttleCount(sessionId, delta);
-    setLoading(false);
-    if (!res.success) {
-      setQuantity(quantity); // rollback
-      alert(res.error || "Lỗi cập nhật số cầu.");
+    if (!res?.success) {
+      setQuantity(prev); // rollback nếu lỗi
+      alert(res?.error || "Lỗi cập nhật số cầu.");
     }
   };
 
@@ -73,7 +76,7 @@ export function ShuttleCounter({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              disabled={loading || quantity <= 0}
+              disabled={quantity <= 0}
               onClick={() => handleUpdate(-1)}
               className="min-h-[48px] py-2.5 px-4 rounded-xl text-sm font-black uppercase bg-white text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-zinc-100 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000000] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
             >
@@ -83,7 +86,6 @@ export function ShuttleCounter({
 
             <button
               type="button"
-              disabled={loading}
               onClick={() => handleUpdate(1)}
               className="min-h-[48px] py-2.5 px-4 rounded-xl text-sm font-black uppercase bg-[#55db9c] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#43c487] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000000] transition-all flex items-center justify-center gap-2"
             >
@@ -96,7 +98,7 @@ export function ShuttleCounter({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              disabled={loading || quantity < 12}
+              disabled={quantity < 12}
               onClick={() => handleUpdate(-12)}
               className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold bg-[#f1f3f6] text-zinc-700 border border-black shadow-[2px_2px_0px_#000000] hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
@@ -105,7 +107,6 @@ export function ShuttleCounter({
 
             <button
               type="button"
-              disabled={loading}
               onClick={() => handleUpdate(12)}
               className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-black uppercase bg-[#e9ccff] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#d8b5ff] transition-all flex items-center justify-center gap-1.5"
             >

@@ -104,16 +104,6 @@ export async function toggleCheckIn(
   checkInBy: "SELF" | "TREASURER" = "TREASURER"
 ) {
   try {
-    const attendance = await db.sessionAttendance.findUnique({
-      where: {
-        sessionId_memberId: { sessionId, memberId },
-      },
-    });
-
-    if (!attendance) {
-      return { success: false, error: "Không tìm thấy thông tin điểm danh." };
-    }
-
     await db.sessionAttendance.update({
       where: {
         sessionId_memberId: { sessionId, memberId },
@@ -126,6 +116,7 @@ export async function toggleCheckIn(
 
     revalidatePath(`/sessions/${sessionId}`);
     revalidatePath("/dashboard");
+    revalidatePath("/profile");
     return { success: true };
   } catch (error) {
     console.error("Toggle check-in error:", error);
@@ -605,86 +596,88 @@ export async function calculateAndSaveSessionFees(
   const rawSharedExtraShare = otherSharedFee / totalPresent;
   const rawCourtShare = courtFee / totalPresent;
 
-  // Cập nhật từng người
-  for (const attendance of badmSession.attendances) {
-    // Nếu vắng mặt:
-    if (!attendance.isCheckedIn) {
-      await db.sessionAttendance.update({
-        where: { id: attendance.id },
-        data: {
-          courtFeeShare: 0,
-          shuttleFeeShare: 0,
-          extraFeeShare: 0,
-          totalAmount: 0,
-          paymentStatus: "COVERED_BY_SUBSCRIPTION",
-        },
-      });
-      continue;
-    }
+  // Cập nhật tất cả người chơi song song (Parallel Promise.all) để tối ưu thời gian phản hồi
+  await Promise.all(
+    badmSession.attendances.map(async (attendance) => {
+      // Nếu vắng mặt:
+      if (!attendance.isCheckedIn) {
+        return db.sessionAttendance.update({
+          where: { id: attendance.id },
+          data: {
+            courtFeeShare: 0,
+            shuttleFeeShare: 0,
+            extraFeeShare: 0,
+            totalAmount: 0,
+            paymentStatus: "COVERED_BY_SUBSCRIPTION",
+          },
+        });
+      }
 
-    // Tính phụ phí riêng (nước, quấn cán, tất...)
-    const personalExtra = attendance.extraItems.reduce((acc, curr) => acc + curr.totalPrice, 0);
-    const membershipType = attendance.member.membershipType;
+      // Tính phụ phí riêng (nước, quấn cán, tất...)
+      const personalExtra = attendance.extraItems.reduce((acc, curr) => acc + curr.totalPrice, 0);
+      const membershipType = attendance.member.membershipType;
 
-    let courtFeeShare = 0;
-    let shuttleFeeShare = 0;
-    let extraFeeShare = personalExtra;
-    let totalAmount = 0;
+      let courtFeeShare = 0;
+      let shuttleFeeShare = 0;
+      let extraFeeShare = personalExtra;
+      let totalAmount = 0;
 
-    if (membershipType === "FULL_MONTHLY") {
-      // Gói tháng trọn gói: sân = 0, cầu = 0, chỉ chịu phụ phí riêng
-      courtFeeShare = 0;
-      shuttleFeeShare = 0;
-      extraFeeShare = personalExtra;
-      totalAmount = personalExtra;
-    } else if (membershipType === "COURT_ONLY_MONTHLY") {
-      // Gói tháng chỉ sân: sân = 0, cầu chia đều + phụ phí chung chia đều + phụ phí riêng
-      courtFeeShare = 0;
-      shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
-      const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
-      extraFeeShare = sharedExtraRounded + personalExtra;
-      totalAmount = roundFee(shuttleFeeShare + extraFeeShare, clubRounding);
-    } else {
-      // Đóng theo buổi hoặc Khách vãng lai (PAY_PER_SESSION / GUEST)
-      if (guestFixedFee && guestFixedFee > 0 && (membershipType === "GUEST" || membershipType === "PAY_PER_SESSION")) {
-        // Áp dụng giá cố định cho khách
-        courtFeeShare = guestFixedFee;
+      if (membershipType === "FULL_MONTHLY") {
+        // Gói tháng trọn gói: sân = 0, cầu = 0, chỉ chịu phụ phí riêng
+        courtFeeShare = 0;
         shuttleFeeShare = 0;
         extraFeeShare = personalExtra;
-        totalAmount = guestFixedFee + personalExtra;
-      } else {
-        // Chia đều chuẩn
-        courtFeeShare = roundFee(rawCourtShare, clubRounding);
+        totalAmount = personalExtra;
+      } else if (membershipType === "COURT_ONLY_MONTHLY") {
+        // Gói tháng chỉ sân: sân = 0, cầu chia đều + phụ phí chung chia đều + phụ phí riêng
+        courtFeeShare = 0;
         shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
         const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
         extraFeeShare = sharedExtraRounded + personalExtra;
-        totalAmount = roundFee(courtFeeShare + shuttleFeeShare + extraFeeShare, clubRounding);
+        totalAmount = roundFee(shuttleFeeShare + extraFeeShare, clubRounding);
+      } else {
+        // Đóng theo buổi hoặc Khách vãng lai (PAY_PER_SESSION / GUEST)
+        if (guestFixedFee && guestFixedFee > 0 && (membershipType === "GUEST" || membershipType === "PAY_PER_SESSION")) {
+          // Áp dụng giá cố định cho khách
+          courtFeeShare = guestFixedFee;
+          shuttleFeeShare = 0;
+          extraFeeShare = personalExtra;
+          totalAmount = guestFixedFee + personalExtra;
+        } else {
+          // Chia đều chuẩn
+          courtFeeShare = roundFee(rawCourtShare, clubRounding);
+          shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
+          const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
+          extraFeeShare = sharedExtraRounded + personalExtra;
+          totalAmount = roundFee(courtFeeShare + shuttleFeeShare + extraFeeShare, clubRounding);
+        }
       }
-    }
 
-    // Trạng thái thanh toán
-    let newPaymentStatus = attendance.paymentStatus;
-    if (totalAmount === 0) {
-      newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
-    } else if (attendance.paymentStatus === "COVERED_BY_SUBSCRIPTION") {
-      newPaymentStatus = "UNPAID";
-    }
+      // Trạng thái thanh toán
+      let newPaymentStatus = attendance.paymentStatus;
+      if (totalAmount === 0) {
+        newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
+      } else if (attendance.paymentStatus === "COVERED_BY_SUBSCRIPTION") {
+        newPaymentStatus = "UNPAID";
+      }
 
-    await db.sessionAttendance.update({
-      where: { id: attendance.id },
-      data: {
-        courtFeeShare,
-        shuttleFeeShare,
-        extraFeeShare,
-        totalAmount,
-        paymentStatus: newPaymentStatus,
-      },
-    });
-  }
+      return db.sessionAttendance.update({
+        where: { id: attendance.id },
+        data: {
+          courtFeeShare,
+          shuttleFeeShare,
+          extraFeeShare,
+          totalAmount,
+          paymentStatus: newPaymentStatus,
+        },
+      });
+    })
+  );
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath(`/sessions/${sessionId}/split`);
   revalidatePath("/dashboard");
+  revalidatePath("/profile");
   return { success: true };
 }
 
@@ -730,6 +723,7 @@ export async function togglePaymentStatus(
     revalidatePath(`/sessions/${attendance.sessionId}`);
     revalidatePath(`/sessions/${attendance.sessionId}/split`);
     revalidatePath("/dashboard");
+    revalidatePath("/profile");
     return { success: true };
   } catch (error) {
     console.error("Toggle payment status error:", error);

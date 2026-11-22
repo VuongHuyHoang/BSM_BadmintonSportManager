@@ -40,19 +40,34 @@ export async function Navbar() {
                 <span>Tạo CLB</span>
               </Link>
 
-              {/* User Pill */}
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#f1f3f6] border border-black shadow-[2px_2px_0px_#000000]">
-                <div className="h-5 w-5 rounded-full bg-[#e9ccff] border border-black flex items-center justify-center text-[10px] font-black">
-                  {session.user.name?.charAt(0).toUpperCase() || "U"}
-                </div>
-                <span className="max-w-[120px] truncate hidden md:inline">{session.user.name}</span>
+              {/* Profile Link (Desktop) */}
+              <Link
+                href="/profile"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-[#e9ccff] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#d8b5ff] transition-all"
+              >
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>Hồ Sơ & Nợ</span>
+              </Link>
+
+              {/* User Pill (Clicks to /profile) */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#f1f3f6] border border-black shadow-[2px_2px_0px_#000000]">
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                  title="Xem Trang Cá Nhân"
+                >
+                  <div className="h-5 w-5 rounded-full bg-[#55db9c] border border-black flex items-center justify-center text-[10px] font-black">
+                    {session.user.name?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <span className="max-w-[100px] truncate hidden md:inline">{session.user.name}</span>
+                </Link>
                 
                 {/* Sign out button */}
                 <form action={handleSignOut}>
                   <button
                     type="submit"
                     title="Đăng xuất"
-                    className="ml-1 text-zinc-500 hover:text-black p-0.5 rounded transition-colors"
+                    className="text-zinc-400 hover:text-black p-0.5 rounded transition-colors ml-0.5"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                   </button>
