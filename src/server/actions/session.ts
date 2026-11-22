@@ -357,6 +357,7 @@ export async function addExtraItemToAttendance(
           club: { include: { members: true } },
         },
       },
+      extraItems: true,
     },
   });
 
@@ -373,18 +374,35 @@ export async function addExtraItemToAttendance(
   const cleanName = itemName.trim();
   const validQty = Math.max(1, quantity);
   const validPrice = Math.max(0, unitPrice);
-  const totalPrice = validQty * validPrice;
 
   try {
-    await db.attendanceExtraItem.create({
-      data: {
-        attendanceId,
-        itemName: cleanName,
-        quantity: validQty,
-        unitPrice: validPrice,
-        totalPrice,
-      },
-    });
+    // Kiểm tra xem sản phẩm có tên giống nhau (không phân biệt hoa thường) đã tồn tại chưa
+    const existing = attendance.extraItems.find(
+      (item) => item.itemName.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (existing) {
+      // Gộp vào bản ghi đã có và x số lượng
+      const newQty = existing.quantity + validQty;
+      const newTotal = newQty * existing.unitPrice;
+      await db.attendanceExtraItem.update({
+        where: { id: existing.id },
+        data: {
+          quantity: newQty,
+          totalPrice: newTotal,
+        },
+      });
+    } else {
+      await db.attendanceExtraItem.create({
+        data: {
+          attendanceId,
+          itemName: cleanName,
+          quantity: validQty,
+          unitPrice: validPrice,
+          totalPrice: validQty * validPrice,
+        },
+      });
+    }
 
     // Cập nhật lại extraFeeShare trong sessionAttendance
     const allItems = await db.attendanceExtraItem.findMany({
@@ -402,6 +420,74 @@ export async function addExtraItemToAttendance(
   } catch (error) {
     console.error("Add extra item error:", error);
     return { success: false, error: "Lỗi khi thêm phụ phí riêng." };
+  }
+}
+
+export async function updateExtraItemQuantity(itemId: string, delta: number) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const item = await db.attendanceExtraItem.findUnique({
+    where: { id: itemId },
+    include: {
+      attendance: {
+        include: {
+          session: {
+            include: {
+              club: { include: { members: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!item) {
+    return { success: false, error: "Không tìm thấy mục phụ phí." };
+  }
+
+  const actor = item.attendance.session.club.members.find((m) => m.userId === session.user?.id);
+  if (!actor || (actor.role !== "ADMIN" && actor.role !== "TREASURER")) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền chỉnh sửa." };
+  }
+
+  const attendanceId = item.attendanceId;
+  const sessionId = item.attendance.sessionId;
+  const newQty = item.quantity + delta;
+
+  try {
+    if (newQty <= 0) {
+      await db.attendanceExtraItem.delete({
+        where: { id: itemId },
+      });
+    } else {
+      await db.attendanceExtraItem.update({
+        where: { id: itemId },
+        data: {
+          quantity: newQty,
+          totalPrice: newQty * item.unitPrice,
+        },
+      });
+    }
+
+    // Recalculate
+    const allItems = await db.attendanceExtraItem.findMany({
+      where: { attendanceId },
+    });
+    const newTotalExtra = allItems.reduce((acc, curr) => acc + curr.totalPrice, 0);
+
+    await db.sessionAttendance.update({
+      where: { id: attendanceId },
+      data: { extraFeeShare: newTotalExtra },
+    });
+
+    revalidatePath(`/sessions/${sessionId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Update extra item quantity error:", error);
+    return { success: false, error: "Lỗi khi thay đổi số lượng." };
   }
 }
 
