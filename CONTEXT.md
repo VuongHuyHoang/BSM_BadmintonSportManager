@@ -26,12 +26,15 @@
 ---
 
 ## 3. Trạng Thái Dự Án Hiện Tại
-- **Giai đoạn**: **Hoàn tất Phase 1** (Khởi tạo thành công Next.js 14, Tailwind CSS, Prisma ORM, NextAuth v5, SQLite Database và Seed dữ liệu mẫu).
-- **Build Status**: `npm run build` thành công 100% không lỗi.
-- **Dữ liệu mẫu đã có sẵn trong `dev.db`**:
+- **Giai đoạn**: **Hoàn tất 100% Phase 1 & Đã Deploy Thành Công Lên Vercel + Supabase**.
+- **Môi trường Production**:
+  - Hosting: Vercel (CI/CD tự động kích hoạt khi push code lên GitHub `VuongHuyHoang/BSM_BadmintonSportManager`).
+  - Database: Supabase PostgreSQL (Singapore Pooler).
+  - Giao diện: Slush Design System (Neo-modern, high contrast, mobile-first touch targets $\ge 44$px).
+- **Dữ liệu mẫu đã có sẵn trên Supabase**:
   - Tài khoản Admin (`admin@badminton.vn` / mật khẩu `123456`).
   - Tài khoản Thủ quỹ (`treasurer@badminton.vn` / mật khẩu `123456`).
   - Tài khoản Hội viên (`huy@badminton.vn` / mật khẩu `123456`).
   - CLB Cầu Lông Kỳ Hòa (Mã mời: `KYHOA-CLUB`).
   - 5 hội viên với 3 loại gói khác nhau, 1 buổi đánh mẫu và giao dịch quỹ.
-- **Bước tiếp theo**: Bắt đầu **Phase 2: Quản lý CLB & Hồ sơ Hội viên** (Giao diện tạo CLB, mã mời và quản lý thành viên).
+- **Bước tiếp theo**: Bắt đầu **Phase 2: Quản lý CLB & Hồ sơ Hội viên** (Màn hình Đăng nhập/Đăng ký, Tạo CLB, Quản lý hội viên & Mã mời).

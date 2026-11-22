@@ -7,12 +7,13 @@ Lộ trình chi tiết theo từng Sprint dành cho quá trình Vibe Coding vớ
 ## 📌 Phase 1: Khởi Tạo Nền Tảng, CSDL & Xác Thực (Foundation, DB & Auth)
 - [x] Tạo cấu trúc thư mục quy chuẩn cho Vibe Coding (`.agents/`, `docs/`, `AGENTS.md`, `CONTEXT.md`).
 - [x] Tích hợp bộ quy chuẩn thiết kế [frontend-design](file:///e:/BSM_BadmintonSportManager/.agents/skills/frontend-design/SKILL.md) và [coding-style](file:///e:/BSM_BadmintonSportManager/.agents/rules/coding-style.md).
+- [x] Áp dụng hệ thống thiết kế thể thao hiện đại **Slush Design System** (Refero Style `8b6b547f`).
 - [x] Khởi tạo dự án Next.js 14+ (App Router), TypeScript, Tailwind CSS, Shadcn UI, Lucide Icons.
 - [x] Thiết lập hệ thống Xác thực Đa tài khoản (NextAuth.js v5 + Prisma Adapter) hỗ trợ Credentials & OAuth.
-- [x] Cài đặt Prisma ORM, cấu hình 7 bảng nghiệp vụ + bảng Auth đồng bộ CSDL SQLite cục bộ (`dev.db`).
-- [x] Tạo file seed dữ liệu mẫu (`prisma/seed.ts`): Đã seed thành công 1 CLB mẫu (CLB Kỳ Hòa), 3 tài khoản Auth (Admin, Thủ quỹ, Hội viên), 5 hội viên thuộc 3 nhóm gói khác nhau, 1 buổi đánh mẫu và giao dịch quỹ.
+- [x] Cài đặt Prisma ORM, kết nối trực tiếp lên cơ sở dữ liệu Cloud PostgreSQL trên Supabase.
+- [x] Tạo file seed dữ liệu mẫu (`prisma/seed.ts`): Đã nạp thành công 1 CLB mẫu (CLB Kỳ Hòa), 3 tài khoản Auth (Admin, Thủ quỹ, Hội viên), 5 hội viên thuộc 3 nhóm gói khác nhau, 1 buổi đánh mẫu và giao dịch quỹ lên Supabase.
 - [x] Kiểm tra biên dịch sản phẩm (`npm run build`) hoàn tất 100% không có lỗi.
-- [ ] **Deploy lên Vercel + Supabase**: Sẵn sàng kết nối khi bạn muốn đưa lên internet (đã có hướng dẫn tại [DEPLOYMENT.md](file:///e:/BSM_BadmintonSportManager/docs/DEPLOYMENT.md)).
+- [x] **Deploy thành công lên Vercel + Supabase**: Thiết lập hoàn tất đường ống tự động CI/CD (mỗi lần push code lên GitHub là web tự cập nhật).
 
 ---
 
