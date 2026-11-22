@@ -63,6 +63,26 @@ export default async function DashboardPage() {
 
   const totalUnpaid = unpaidAttendances.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
+  // 3. Lấy các buổi đánh đang diễn ra hoặc sắp tới của các CLB mà user tham gia
+  const activeSessions = await db.badmintonSession.findMany({
+    where: {
+      club: {
+        members: {
+          some: { userId: session.user.id, isActive: true },
+        },
+      },
+      status: { in: ["ONGOING", "SCHEDULED"] },
+    },
+    include: {
+      club: true,
+      attendances: {
+        where: { member: { userId: session.user.id } },
+      },
+    },
+    orderBy: { startTime: "asc" },
+    take: 3,
+  });
+
   return (
     <div className="min-h-screen bg-[#dceeff] text-black">
       <Navbar />
@@ -110,6 +130,76 @@ export default async function DashboardPage() {
             <span className="text-xs font-bold text-white/90 bg-black/20 px-3 py-1.5 rounded-full border border-black/30 self-start sm:self-auto">
               Vào CLB để quét VietQR
             </span>
+          </div>
+        )}
+
+        {/* Buổi Đánh Đang Diễn Ra / Sắp Tới */}
+        {activeSessions.length > 0 && (
+          <div className="mb-8 bg-white border border-black rounded-[22px] p-5 sm:p-6 shadow-[5px_5px_0px_#000000]">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-black">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-[#55db9c] border border-black animate-ping" />
+                <h3 className="text-sm font-black uppercase tracking-wider text-black">
+                  Buổi Đánh Đang Diễn Ra Hoặc Sắp Tới
+                </h3>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {activeSessions.map((s) => {
+                const myAttendance = s.attendances[0];
+                const isCheckedIn = myAttendance?.isCheckedIn;
+
+                return (
+                  <div
+                    key={s.id}
+                    className="p-4 rounded-xl border border-black bg-[#f8fafc] shadow-[3px_3px_0px_#000000] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                          {s.club.name}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-black border border-black uppercase ${
+                            s.status === "ONGOING"
+                              ? "bg-[#55db9c] text-black animate-pulse"
+                              : "bg-[#ffd731] text-black"
+                          }`}
+                        >
+                          {s.status === "ONGOING" ? "Đang Diễn Ra" : "Sắp Tới"}
+                        </span>
+                      </div>
+
+                      <h4 className="text-base font-black text-black leading-tight mb-2">
+                        {s.courtName}
+                      </h4>
+
+                      <div className="text-xs text-zinc-600 font-semibold mb-3">
+                        Trạng thái điểm danh:{" "}
+                        {isCheckedIn ? (
+                          <span className="text-[#16a34a] font-black">✓ Đã Có Mặt Trên Sân</span>
+                        ) : (
+                          <span className="text-[#fb4903] font-black">⚡ Chưa Điểm Danh</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <Link
+                      href={`/sessions/${s.id}`}
+                      className={`w-full py-2 px-3 rounded-xl text-xs font-black uppercase border border-black shadow-[2px_2px_0px_#000000] transition-colors flex items-center justify-center gap-1.5 ${
+                        isCheckedIn
+                          ? "bg-white text-black hover:bg-zinc-100"
+                          : "bg-[#55db9c] text-black hover:bg-[#43c487]"
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{isCheckedIn ? "Xem Chi Tiết Buổi Đánh" : "Tự Điểm Danh Ngay"}</span>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

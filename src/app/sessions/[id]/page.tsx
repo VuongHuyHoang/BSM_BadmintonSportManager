@@ -1,0 +1,249 @@
+import { auth } from "@/lib/auth";
+import { redirect, notFound } from "next/navigation";
+import { db } from "@/lib/db";
+import Link from "next/link";
+import { Navbar } from "@/components/navbar";
+import { ShuttleCounter } from "@/components/session/shuttle-counter";
+import { AttendanceBoard } from "@/components/session/attendance-board";
+import { ExtraFeeWidget } from "@/components/session/extra-fee-widget";
+import { formatVND } from "@/lib/utils";
+import { updateSessionStatus } from "@/server/actions/session";
+import { 
+  ArrowLeft, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  Play, 
+  CheckCircle, 
+  Sparkles,
+  Calculator,
+  QrCode
+} from "lucide-react";
+
+interface SessionPageProps {
+  params: {
+    id: string; // sessionId
+  };
+}
+
+export default async function SessionDetailPage({ params }: SessionPageProps) {
+  const sessionUser = await auth();
+
+  const session = await db.badmintonSession.findUnique({
+    where: { id: params.id },
+    include: {
+      club: {
+        include: {
+          members: {
+            where: { isActive: true },
+          },
+        },
+      },
+      shuttleLogs: true,
+      attendances: {
+        include: {
+          member: true,
+        },
+        orderBy: [
+          { isCheckedIn: "desc" },
+          { member: { displayName: "asc" } },
+        ],
+      },
+    },
+  });
+
+  if (!session) {
+    notFound();
+  }
+
+  // Quyền của user hiện tại
+  const currentMember = session.club.members.find((m) => m.userId === sessionUser?.user?.id);
+  const isLeader = currentMember?.role === "ADMIN" || currentMember?.role === "TREASURER";
+
+  // Thống kê tổng quan
+  const shuttleLog = session.shuttleLogs[0] || { quantity: 0, unitPrice: session.club.defaultShuttlePrice, totalAmount: 0 };
+  const totalCost = session.courtFee + shuttleLog.totalAmount + session.otherFee;
+  const checkedInCount = session.attendances.filter((a) => a.isCheckedIn).length;
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat("vi-VN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#dceeff] text-black pb-12">
+      <Navbar />
+
+      <main className="max-w-5xl mx-auto px-4 py-8 sm:px-6">
+        {/* Breadcrumb Back */}
+        <Link
+          href={`/clubs/${session.clubId}`}
+          className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-zinc-700 hover:text-black mb-4 transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Về CLB {session.club.name}</span>
+        </Link>
+
+        {/* 1. Header Buổi Đánh */}
+        <div className="bg-white border border-black rounded-[24px] p-6 sm:p-8 shadow-[6px_6px_0px_#000000] mb-6">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className={`px-3 py-0.5 rounded-full text-xs font-black border border-black uppercase ${
+                    session.status === "ONGOING"
+                      ? "bg-[#55db9c] text-black animate-pulse"
+                      : session.status === "COMPLETED"
+                      ? "bg-[#e9ccff] text-black"
+                      : "bg-[#ffd731] text-black"
+                  }`}
+                >
+                  {session.status === "ONGOING"
+                    ? "● Đang Đánh Trên Sân"
+                    : session.status === "COMPLETED"
+                    ? "✓ Đã Hoàn Tất"
+                    : "Lên Lịch Sắp Tới"}
+                </span>
+                <span className="text-xs font-bold text-zinc-600">
+                  {session.club.name}
+                </span>
+              </div>
+
+              <h1 className="text-2xl sm:text-4xl font-black uppercase tracking-tight text-black leading-tight">
+                {session.courtName}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs font-semibold text-zinc-600 mt-2">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {formatDate(session.startTime)}
+                </span>
+                <span>·</span>
+                <span>Tiền sân: {formatVND(session.courtFee)}</span>
+              </div>
+            </div>
+
+            {/* Leader Status Actions */}
+            {isLeader && (
+              <div className="flex flex-wrap items-center gap-2">
+                {session.status === "SCHEDULED" && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await updateSessionStatus(session.id, "ONGOING");
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-full text-xs font-black uppercase bg-[#55db9c] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#42c586] transition-all flex items-center gap-1.5"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-black" />
+                      <span>Bắt Đầu Buổi Đánh</span>
+                    </button>
+                  </form>
+                )}
+
+                {session.status === "ONGOING" && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await updateSessionStatus(session.id, "COMPLETED");
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-full text-xs font-black uppercase bg-[#ffd731] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#f0c518] transition-all flex items-center gap-1.5"
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>Kết Thúc Buổi Đánh</span>
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. Main Grid: Left (Attendance Board) & Right (Shuttle Counter + Costs) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Cột Trái: Bảng Điểm Danh 2 Chiều (Chiếm 2 phần) */}
+          <div className="lg:col-span-2">
+            <AttendanceBoard
+              sessionId={session.id}
+              clubId={session.clubId}
+              attendees={session.attendances}
+              allClubMembers={session.club.members}
+              currentUserId={sessionUser?.user?.id}
+              isLeader={isLeader}
+            />
+          </div>
+
+          {/* Cột Phải: Tiêu Hao Cầu + Phụ Phí + Tổng Hợp Chi Phí */}
+          <div className="space-y-5">
+            {/* Bộ Đếm Cầu Lông Live */}
+            <ShuttleCounter
+              sessionId={session.id}
+              initialQuantity={shuttleLog.quantity}
+              unitPrice={shuttleLog.unitPrice}
+              isLeader={isLeader}
+            />
+
+            {/* Phụ Phí Nước Uống */}
+            <ExtraFeeWidget
+              sessionId={session.id}
+              initialOtherFee={session.otherFee}
+              isLeader={isLeader}
+            />
+
+            {/* Live Cost Summary Card */}
+            <div className="bg-white border border-black rounded-[22px] p-5 shadow-[5px_5px_0px_#000000]">
+              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 block mb-2">
+                Tổng Hợp Chi Phí Buổi Đánh
+              </span>
+
+              <div className="space-y-2 text-xs font-semibold mb-4">
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Tiền sân:</span>
+                  <span className="font-bold text-black">{formatVND(session.courtFee)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Tiền cầu ({shuttleLog.quantity} quả):</span>
+                  <span className="font-bold text-[#fb4903]">{formatVND(shuttleLog.totalAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Nước & phụ phí:</span>
+                  <span className="font-bold text-black">{formatVND(session.otherFee)}</span>
+                </div>
+                <div className="pt-2 border-t border-black/10 flex justify-between items-center text-sm font-black">
+                  <span>Tổng Chi Phí:</span>
+                  <span className="text-base text-black">{formatVND(totalCost)}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-zinc-500">
+                  <span>Người có mặt chia tiền:</span>
+                  <span className="font-bold text-black">{checkedInCount} người</span>
+                </div>
+              </div>
+
+              {/* Phase 4 Split & VietQR CTA Button */}
+              <div className="pt-2 border-t border-black/10">
+                <Link
+                  href={`/sessions/${session.id}/split`}
+                  className="w-full py-3 px-4 rounded-full text-xs font-black uppercase bg-[#5c4ade] text-white border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#4b39cb] transition-all flex items-center justify-center gap-2"
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>Chia Tiền & Sinh VietQR (Phase 4)</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

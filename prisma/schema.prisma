@@ -152,6 +152,7 @@ model SessionAttendance {
   id              String           @id @default(cuid())
   sessionId       String           @map("session_id")
   memberId        String           @map("member_id")
+  isCheckedIn     Boolean          @default(false) @map("is_checked_in")
   checkInBy       String           @default("SELF") @map("check_in_by") // SELF, TREASURER
   courtFeeShare   Int              @default(0) @map("court_fee_share")
   shuttleFeeShare Int              @default(0) @map("shuttle_fee_share")
