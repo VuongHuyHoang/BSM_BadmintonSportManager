@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { MemberManagement } from "@/components/club/member-management";
+import { LeaveClubButton } from "@/components/club/leave-club-button";
 import { formatVND } from "@/lib/utils";
 import { 
   Users, 
@@ -284,6 +285,26 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
             currentUserRole={currentMember?.role || null}
           />
         </section>
+
+        {/* Member Options / Leave Club Section */}
+        {currentMember && (
+          <section className="mt-8 bg-white border border-black rounded-[22px] p-5 sm:p-6 shadow-[5px_5px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 block mb-0.5">
+                Cài Đặt Thành Viên
+              </span>
+              <h3 className="text-base font-black uppercase text-black">
+                Rời Câu Lạc Bộ
+              </h3>
+              <p className="text-xs text-zinc-600 font-medium">
+                Bạn chỉ có thể rời câu lạc bộ khi đã thanh toán hết nợ và không trong buổi đánh dở dang trên sân.
+              </p>
+            </div>
+            <div>
+              <LeaveClubButton clubId={club.id} clubName={club.name} />
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

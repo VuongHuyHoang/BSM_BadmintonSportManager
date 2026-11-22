@@ -181,3 +181,91 @@ export async function removeMember(memberId: string) {
     return { success: false, error: "Lỗi khi xóa hội viên." };
   }
 }
+
+export async function leaveClub(clubId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập để thực hiện thao tác này." };
+  }
+
+  const member = await db.member.findFirst({
+    where: {
+      clubId,
+      userId: session.user.id,
+      isActive: true,
+    },
+  });
+
+  if (!member) {
+    return { success: false, error: "Bạn không phải là thành viên hoạt động trong CLB này." };
+  }
+
+  // 1. Nếu là Trưởng nhóm, phải chuyển quyền trước nếu là Admin duy nhất
+  if (member.role === "ADMIN") {
+    const otherAdmins = await db.member.count({
+      where: {
+        clubId,
+        role: "ADMIN",
+        isActive: true,
+        id: { not: member.id },
+      },
+    });
+
+    if (otherAdmins === 0) {
+      return {
+        success: false,
+        error: "Bạn đang là Trưởng nhóm duy nhất của CLB. Vui lòng chuyển giao vai trò Trưởng nhóm cho thành viên khác trước khi rời CLB.",
+      };
+    }
+  }
+
+  // 2. Kiểm tra nếu đang có mặt trong buổi đánh chưa kết thúc (ONGOING hoặc SCHEDULED)
+  const activeAttendance = await db.sessionAttendance.findFirst({
+    where: {
+      memberId: member.id,
+      isCheckedIn: true,
+      session: {
+        status: { in: ["ONGOING", "SCHEDULED"] },
+      },
+    },
+    include: { session: true },
+  });
+
+  if (activeAttendance) {
+    return {
+      success: false,
+      error: `Bạn đang được điểm danh có mặt trong buổi đánh "${activeAttendance.session.courtName}" chưa kết thúc. Vui lòng đợi buổi đánh hoàn tất và thanh toán đầy đủ trước khi rời CLB.`,
+    };
+  }
+
+  // 3. Kiểm tra các khoản nợ / phí chưa thanh toán ở tất cả buổi đánh
+  const unpaidAttendance = await db.sessionAttendance.findFirst({
+    where: {
+      memberId: member.id,
+      paymentStatus: "UNPAID",
+    },
+    include: { session: true },
+  });
+
+  if (unpaidAttendance) {
+    return {
+      success: false,
+      error: `Bạn còn khoản tiền chưa thanh toán ở buổi đánh "${unpaidAttendance.session.courtName}". Vui lòng thanh toán toàn bộ chi phí trước khi rời CLB.`,
+    };
+  }
+
+  // 4. Đủ điều kiện rời CLB -> Đặt isActive = false để bảo toàn lịch sử giao dịch & buổi đánh
+  try {
+    await db.member.update({
+      where: { id: member.id },
+      data: { isActive: false },
+    });
+
+    revalidatePath(`/clubs/${clubId}`);
+    revalidatePath(`/dashboard`);
+    return { success: true };
+  } catch (error) {
+    console.error("Leave club error:", error);
+    return { success: false, error: "Lỗi hệ thống khi rời câu lạc bộ." };
+  }
+}

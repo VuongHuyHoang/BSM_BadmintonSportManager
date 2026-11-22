@@ -5,7 +5,9 @@ import { formatVND } from "@/lib/utils";
 import { 
   toggleCheckIn, 
   addMemberToSession, 
-  addQuickGuestToSession 
+  addQuickGuestToSession,
+  addExtraItemToAttendance,
+  removeExtraItemFromAttendance
 } from "@/server/actions/session";
 import { 
   CheckCircle2, 
@@ -15,8 +17,19 @@ import {
   Zap, 
   Sparkles,
   Phone,
-  Plus
+  Plus,
+  Coffee,
+  X,
+  ShoppingBag
 } from "lucide-react";
+
+interface ExtraItem {
+  id: string;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
 
 interface AttendeeItem {
   id: string;
@@ -24,6 +37,8 @@ interface AttendeeItem {
   isCheckedIn: boolean;
   checkInBy: string;
   paymentStatus: string;
+  extraFeeShare: number;
+  extraItems?: ExtraItem[];
   member: {
     id: string;
     displayName: string;
@@ -62,6 +77,13 @@ export function AttendanceBoard({
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestLoading, setGuestLoading] = useState(false);
+
+  // State cho phụ phí / tiền nước riêng từng người
+  const [activeExtraAttendeeId, setActiveExtraAttendeeId] = useState<string | null>(null);
+  const [customItemName, setCustomItemName] = useState("");
+  const [customItemPrice, setCustomItemPrice] = useState<number>(15000);
+  const [customItemQty, setCustomItemQty] = useState<number>(1);
+  const [extraLoading, setExtraLoading] = useState(false);
 
   // Tìm xem người đang đăng nhập có trong danh sách buổi đánh này không
   const myAttendance = currentUserId
@@ -103,6 +125,32 @@ export function AttendanceBoard({
     } else {
       alert(res.error || "Lỗi thêm khách vãng lai.");
     }
+  };
+
+  // Thêm phụ phí riêng nhanh từ preset
+  const handleAddPresetExtra = async (attendanceId: string, name: string, price: number) => {
+    setExtraLoading(true);
+    await addExtraItemToAttendance(attendanceId, name, 1, price);
+    setExtraLoading(false);
+  };
+
+  // Thêm phụ phí riêng tuỳ chỉnh
+  const handleAddCustomExtra = async (e: React.FormEvent, attendanceId: string) => {
+    e.preventDefault();
+    if (!customItemName.trim()) return;
+    setExtraLoading(true);
+    await addExtraItemToAttendance(attendanceId, customItemName, customItemQty, customItemPrice);
+    setExtraLoading(false);
+    setCustomItemName("");
+    setCustomItemQty(1);
+    setActiveExtraAttendeeId(null);
+  };
+
+  // Xoá phụ phí riêng
+  const handleRemoveExtraItem = async (itemId: string) => {
+    setExtraLoading(true);
+    await removeExtraItemFromAttendance(itemId);
+    setExtraLoading(false);
   };
 
   return (
@@ -312,6 +360,133 @@ export function AttendanceBoard({
                       </span>
                     )}
                   </div>
+
+                  {/* Danh sách các sản phẩm phụ phí riêng (nước, quấn cán, tất...) */}
+                  {a.extraItems && a.extraItems.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {a.extraItems.map((item) => (
+                        <span
+                          key={item.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#fff7ed] text-amber-950 border border-amber-300 shadow-[1px_1px_0px_#f59e0b]"
+                        >
+                          <span>
+                            {item.quantity > 1 ? `${item.quantity}x ` : ""}
+                            {item.itemName}: {formatVND(item.totalPrice)}
+                          </span>
+                          {isLeader && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExtraItem(item.id)}
+                              className="text-amber-700 hover:text-red-600 ml-0.5"
+                              title="Xóa món này"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      <span className="text-[10px] font-black text-amber-700">
+                        (+{formatVND(a.extraItems.reduce((acc, curr) => acc + curr.totalPrice, 0))} riêng)
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Leader Action: Thêm nước / phụ phí riêng cho hội viên này */}
+                  {isLeader && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveExtraAttendeeId(
+                            activeExtraAttendeeId === a.id ? null : a.id
+                          )
+                        }
+                        className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-800 bg-[#fffbeb] hover:bg-[#fef3c7] px-2 py-1 rounded-md border border-amber-400 transition-colors"
+                      >
+                        <Coffee className="w-3 h-3" />
+                        <span>+ Thêm Nước / Phụ Phí Riêng</span>
+                      </button>
+
+                      {/* Box Chọn Nhanh Nước / Phụ Phí */}
+                      {activeExtraAttendeeId === a.id && (
+                        <div className="mt-2 p-3 rounded-xl bg-white border border-black shadow-[3px_3px_0px_#000000] space-y-2.5">
+                          <span className="text-[10px] font-black uppercase text-zinc-600 block">
+                            Chọn Nhanh Món Nước / Phụ Kiện:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { name: "Nước Revive", price: 15000, label: "💧 Revive 15k" },
+                              { name: "Nước suối", price: 10000, label: "💧 Nước suối 10k" },
+                              { name: "Bò húc", price: 18000, label: "⚡ Bò húc 18k" },
+                              { name: "Quấn cán vợt", price: 25000, label: "🏸 Quấn cán 25k" },
+                              { name: "Tất cầu lông", price: 30000, label: "🧦 Tất/vớ 30k" },
+                            ].map((preset) => (
+                              <button
+                                key={preset.name}
+                                type="button"
+                                disabled={extraLoading}
+                                onClick={() =>
+                                  handleAddPresetExtra(a.id, preset.name, preset.price)
+                                }
+                                className="px-2 py-1 rounded-lg text-[10px] font-black bg-[#f1f3f6] hover:bg-[#e2e8f0] border border-black transition-colors"
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Custom form */}
+                          <form
+                            onSubmit={(e) => handleAddCustomExtra(e, a.id)}
+                            className="pt-2 border-t border-black/10 flex flex-wrap gap-2 items-end"
+                          >
+                            <div className="flex-1 min-w-[130px]">
+                              <label className="block text-[9px] font-black uppercase text-zinc-600 mb-0.5">
+                                Món Khác:
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="VD: Trà đào, Sting..."
+                                value={customItemName}
+                                onChange={(e) => setCustomItemName(e.target.value)}
+                                className="w-full px-2 py-1 rounded-lg border border-black text-xs font-bold bg-[#f8fafc] focus:outline-none"
+                              />
+                            </div>
+                            <div className="w-20">
+                              <label className="block text-[9px] font-black uppercase text-zinc-600 mb-0.5">
+                                Giá (VND):
+                              </label>
+                              <input
+                                type="number"
+                                step={1000}
+                                required
+                                value={customItemPrice}
+                                onChange={(e) =>
+                                  setCustomItemPrice(parseInt(e.target.value) || 0)
+                                }
+                                className="w-full px-2 py-1 rounded-lg border border-black text-xs font-bold bg-[#f8fafc] focus:outline-none"
+                              />
+                            </div>
+                            <button
+                              type="submit"
+                              disabled={extraLoading}
+                              className="px-3 py-1 rounded-lg text-xs font-black uppercase bg-black text-white border border-black shadow-[1px_1px_0px_#55db9c]"
+                            >
+                              Thêm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveExtraAttendeeId(null)}
+                              className="px-2 py-1 rounded-lg text-xs font-bold text-zinc-500 hover:text-black"
+                            >
+                              Đóng
+                            </button>
+                          </form>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

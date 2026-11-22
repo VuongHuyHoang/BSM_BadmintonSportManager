@@ -44,6 +44,9 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
       attendances: {
         include: {
           member: true,
+          extraItems: {
+            orderBy: { createdAt: "asc" },
+          },
         },
         orderBy: [
           { isCheckedIn: "desc" },
@@ -63,7 +66,11 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
 
   // Thống kê tổng quan
   const shuttleLog = session.shuttleLogs[0] || { quantity: 0, unitPrice: session.club.defaultShuttlePrice, totalAmount: 0 };
-  const totalCost = session.courtFee + shuttleLog.totalAmount + session.otherFee;
+  const totalIndividualExtraFee = session.attendances.reduce((acc, a) => {
+    const itemsSum = a.extraItems?.reduce((subAcc, item) => subAcc + item.totalPrice, 0) || 0;
+    return acc + itemsSum;
+  }, 0);
+  const totalCost = session.courtFee + shuttleLog.totalAmount + session.otherFee + totalIndividualExtraFee;
   const checkedInCount = session.attendances.filter((a) => a.isCheckedIn).length;
 
   const durationHours = Math.round(((session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)) * 10) / 10;
@@ -244,10 +251,18 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
                   <span className="text-zinc-600">Tiền cầu ({shuttleLog.quantity} quả):</span>
                   <span className="font-bold text-[#fb4903]">{formatVND(shuttleLog.totalAmount)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-600">Nước & phụ phí:</span>
-                  <span className="font-bold text-black">{formatVND(session.otherFee)}</span>
-                </div>
+                {totalIndividualExtraFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-zinc-600">Nước & phụ phí riêng từng người:</span>
+                    <span className="font-bold text-amber-600">{formatVND(totalIndividualExtraFee)}</span>
+                  </div>
+                )}
+                {session.otherFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-zinc-600">Phụ phí chung cả nhóm:</span>
+                    <span className="font-bold text-black">{formatVND(session.otherFee)}</span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-black/10 flex justify-between items-center text-sm font-black">
                   <span>Tổng Chi Phí ({durationHours} giờ):</span>
                   <span className="text-base text-black">{formatVND(totalCost)}</span>

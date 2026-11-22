@@ -165,9 +165,24 @@ model SessionAttendance {
 
   session         BadmintonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   member          Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  extraItems      AttendanceExtraItem[]
 
   @@unique([sessionId, memberId])
   @@map("session_attendances")
+}
+
+model AttendanceExtraItem {
+  id           String            @id @default(cuid())
+  attendanceId String            @map("attendance_id")
+  itemName     String            @map("item_name") // Tên sản phẩm: Revive, Quấn cán, Tất, Nước suối...
+  quantity     Int               @default(1)
+  unitPrice    Int               @map("unit_price")
+  totalPrice   Int               @map("total_price")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  attendance   SessionAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_extra_items")
 }
 
 model Transaction {
