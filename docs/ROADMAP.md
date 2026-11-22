@@ -31,27 +31,30 @@ Lộ trình chi tiết theo từng Sprint dành cho quá trình Vibe Coding vớ
 ---
 
 ## 📅 Phase 3: Quản Lý Buổi Đánh & Điểm Danh 2 Chiều (Session & Attendance)
-- [ ] Tạo lịch buổi đánh: Chọn ngày giờ, địa điểm sân, thời lượng thuê, đơn giá sân.
-- [ ] **Cơ chế Điểm danh 2 chiều**:
+- [x] Tạo lịch buổi đánh: Chọn ngày giờ, địa điểm sân, thời lượng thuê, đơn giá sân.
+- [x] **Cơ chế Điểm danh 2 chiều**:
   - Hội viên tự mở app bấm Check-in khi đến sân.
   - Thủ quỹ kiểm tra, xác nhận và hỗ trợ check-in nhanh cho người không mang điện thoại.
-- [ ] **Bộ đếm số lượng quả cầu tiêu hao (Shuttlecock Counter)**:
+- [x] **Bộ đếm số lượng quả cầu tiêu hao (Shuttlecock Counter)**:
   - Nút bấm `+` / `-` to bản ($> 44\text{px}$) thao tác cực nhanh bằng 1 ngón cái trên mobile.
   - Tự động nhân theo đơn giá cầu mặc định hoặc chỉnh sửa linh hoạt theo loại cầu bung hộp.
-- [ ] Ghi nhận phụ phí buổi đánh (tiền nước, tiền đá, gửi xe tập thể).
+- [x] Ghi nhận phụ phí buổi đánh:
+  - Phụ phí riêng từng người (nước uống, quấn cán, tất vớ) với box cửa sổ popup chuyên dụng, ô chọn số lượng, gộp dòng tự động và preset 1-chạm.
+  - Phụ phí chung cả nhóm (nước đá, phí phát sinh).
+  - Gia hạn số giờ đánh trên sân (tối đa 1 lần).
 
 ---
 
 ## 💰 Phase 4: Động Cơ Chia Tiền Thông Minh & VietQR (Smart Finance & Payment)
-- [ ] Triển khai động cơ tính tiền tự động theo công thức [FINANCIAL_LOGIC.md](file:///e:/BSM_BadmintonSportManager/docs/FINANCIAL_LOGIC.md):
+- [x] Triển khai động cơ tính tiền tự động theo công thức [FINANCIAL_LOGIC.md](file:///e:/BSM_BadmintonSportManager/docs/FINANCIAL_LOGIC.md):
   - Thành viên trọn gói: 0đ/buổi (`COVERED_BY_SUBSCRIPTION`).
   - Thành viên gói chỉ sân: Chia tiền cầu + nước (`court_fee = 0`).
-  - Khách vãng lai / Đóng theo buổi: Chia đều tiền sân + cầu + nước (hoặc thu giá cố định).
-- [ ] Áp dụng quy tắc làm tròn (lên 1.000đ hoặc 5.000đ) và tự động ghi nhận tiền lẻ chênh lệch vào Sổ Quỹ CLB.
-- [ ] **Component hiển thị mã VietQR động**:
+  - Khách vãng lai / Đóng theo buổi: Chia đều tiền sân + cầu + nước (hoặc tùy chọn thu giá cố định).
+- [x] Áp dụng quy tắc làm tròn (lên 1.000đ hoặc 5.000đ theo cấu hình CLB).
+- [x] **Component hiển thị mã VietQR động**:
   - Tự sinh link ảnh VietQR Napas247 theo STK thủ quỹ, số tiền chính xác và cú pháp `BSM [Tên] [Buổi]`.
-- [ ] **Quy trình đối soát cho Thủ quỹ**: Kiểm tra biến động số dư và bấm nút "Xác nhận đã nộp" (`PAID`).
-- [ ] **Tiện ích sao chép hóa đơn Zalo**: Nút 1 chạm copy bản tóm tắt buổi đánh định dạng đẹp (icon cầu lông, danh sách chi tiết từng người) để gửi vào nhóm chat Zalo.
+- [x] **Quy trình đối soát cho Thủ quỹ**: Kiểm tra biến động số dư và bấm nút 1-chạm "Xác nhận đã nộp" (`PAID`).
+- [x] **Tiện ích sao chép hóa đơn Zalo**: Nút 1 chạm copy bản tóm tắt buổi đánh định dạng đẹp (icon cầu lông, danh sách chi tiết từng người) để gửi vào nhóm chat Zalo.
 
 ---
 
