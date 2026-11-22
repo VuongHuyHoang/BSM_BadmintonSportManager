@@ -277,10 +277,10 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
               <div className="pt-2 border-t border-black/10">
                 <Link
                   href={`/sessions/${session.id}/split`}
-                  className="w-full py-3 px-4 rounded-full text-xs font-black uppercase bg-[#5c4ade] text-white border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#4b39cb] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 px-4 rounded-full text-xs font-black uppercase bg-[#5c4ade] text-white border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#4b39cb] active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center gap-2"
                 >
                   <Calculator className="w-4 h-4" />
-                  <span>Chia Tiền & Sinh VietQR (Phase 4)</span>
+                  <span>⚡ Chia Tiền & Quét Mã VietQR</span>
                 </Link>
               </div>
             </div>

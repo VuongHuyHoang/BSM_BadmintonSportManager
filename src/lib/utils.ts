@@ -28,3 +28,39 @@ export function roundFee(amount: number, mode: "CEIL_1K" | "CEIL_5K" | "EXACT" =
   }
   return Math.round(amount);
 }
+
+/**
+ * Xóa dấu tiếng Việt an toàn cho nội dung chuyển khoản ngân hàng
+ */
+export function removeVietnameseAccents(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^a-zA-Z0-9 ]/g, "")
+    .trim();
+}
+
+/**
+ * Sinh link ảnh mã VietQR Napas247 chuẩn quốc gia
+ */
+export function generateVietQRUrl({
+  bankCode,
+  accountNo,
+  accountName,
+  amount,
+  description,
+}: {
+  bankCode: string;
+  accountNo: string;
+  accountName?: string | null;
+  amount: number;
+  description: string;
+}): string {
+  const cleanBank = bankCode.trim();
+  const cleanAccount = accountNo.trim();
+  const cleanDesc = encodeURIComponent(removeVietnameseAccents(description).slice(0, 50));
+  const cleanName = accountName ? encodeURIComponent(accountName.trim().toUpperCase()) : "";
+  return `https://img.vietqr.io/image/${cleanBank}-${cleanAccount}-compact2.png?amount=${Math.round(amount)}&addInfo=${cleanDesc}${cleanName ? `&accountName=${cleanName}` : ""}`;
+}

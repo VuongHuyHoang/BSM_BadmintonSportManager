@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { roundFee } from "@/lib/utils";
 
 export async function createSession(clubId: string, formData: FormData) {
   const session = await auth();
@@ -545,5 +546,193 @@ export async function removeExtraItemFromAttendance(itemId: string) {
   } catch (error) {
     console.error("Remove extra item error:", error);
     return { success: false, error: "Lỗi khi xóa phụ phí." };
+  }
+}
+
+export async function calculateAndSaveSessionFees(
+  sessionId: string,
+  guestFixedFee?: number
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const badmSession = await db.badmintonSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      club: {
+        include: { members: true },
+      },
+      shuttleLogs: true,
+      attendances: {
+        include: {
+          member: true,
+          extraItems: true,
+        },
+      },
+    },
+  });
+
+  if (!badmSession) {
+    return { success: false, error: "Không tìm thấy buổi đánh." };
+  }
+
+  // Check role: Leader
+  const actor = badmSession.club.members.find((m) => m.userId === session.user?.id);
+  if (!actor || (actor.role !== "ADMIN" && actor.role !== "TREASURER")) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền chốt chia tiền." };
+  }
+
+  const clubRounding = (badmSession.club.roundingMode as "CEIL_1K" | "CEIL_5K") || "CEIL_1K";
+
+  // Lọc những người có mặt thực tế
+  const checkedInAttendances = badmSession.attendances.filter((a) => a.isCheckedIn);
+  const totalPresent = checkedInAttendances.length;
+
+  if (totalPresent === 0) {
+    return { success: false, error: "Buổi đánh chưa có ai điểm danh có mặt để chia tiền." };
+  }
+
+  // Tổng tiền cầu
+  const shuttleLog = badmSession.shuttleLogs[0] || { quantity: 0, unitPrice: badmSession.club.defaultShuttlePrice, totalAmount: 0 };
+  const totalShuttleCost = shuttleLog.totalAmount;
+  const courtFee = badmSession.courtFee;
+  const otherSharedFee = badmSession.otherFee;
+
+  // Tính các phần chia cơ bản
+  const rawShuttleShare = totalShuttleCost / totalPresent;
+  const rawSharedExtraShare = otherSharedFee / totalPresent;
+  const rawCourtShare = courtFee / totalPresent;
+
+  // Cập nhật từng người
+  for (const attendance of badmSession.attendances) {
+    // Nếu vắng mặt:
+    if (!attendance.isCheckedIn) {
+      await db.sessionAttendance.update({
+        where: { id: attendance.id },
+        data: {
+          courtFeeShare: 0,
+          shuttleFeeShare: 0,
+          extraFeeShare: 0,
+          totalAmount: 0,
+          paymentStatus: "COVERED_BY_SUBSCRIPTION",
+        },
+      });
+      continue;
+    }
+
+    // Tính phụ phí riêng (nước, quấn cán, tất...)
+    const personalExtra = attendance.extraItems.reduce((acc, curr) => acc + curr.totalPrice, 0);
+    const membershipType = attendance.member.membershipType;
+
+    let courtFeeShare = 0;
+    let shuttleFeeShare = 0;
+    let extraFeeShare = personalExtra;
+    let totalAmount = 0;
+
+    if (membershipType === "FULL_MONTHLY") {
+      // Gói tháng trọn gói: sân = 0, cầu = 0, chỉ chịu phụ phí riêng
+      courtFeeShare = 0;
+      shuttleFeeShare = 0;
+      extraFeeShare = personalExtra;
+      totalAmount = personalExtra;
+    } else if (membershipType === "COURT_ONLY_MONTHLY") {
+      // Gói tháng chỉ sân: sân = 0, cầu chia đều + phụ phí chung chia đều + phụ phí riêng
+      courtFeeShare = 0;
+      shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
+      const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
+      extraFeeShare = sharedExtraRounded + personalExtra;
+      totalAmount = roundFee(shuttleFeeShare + extraFeeShare, clubRounding);
+    } else {
+      // Đóng theo buổi hoặc Khách vãng lai (PAY_PER_SESSION / GUEST)
+      if (guestFixedFee && guestFixedFee > 0 && (membershipType === "GUEST" || membershipType === "PAY_PER_SESSION")) {
+        // Áp dụng giá cố định cho khách
+        courtFeeShare = guestFixedFee;
+        shuttleFeeShare = 0;
+        extraFeeShare = personalExtra;
+        totalAmount = guestFixedFee + personalExtra;
+      } else {
+        // Chia đều chuẩn
+        courtFeeShare = roundFee(rawCourtShare, clubRounding);
+        shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
+        const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
+        extraFeeShare = sharedExtraRounded + personalExtra;
+        totalAmount = roundFee(courtFeeShare + shuttleFeeShare + extraFeeShare, clubRounding);
+      }
+    }
+
+    // Trạng thái thanh toán
+    let newPaymentStatus = attendance.paymentStatus;
+    if (totalAmount === 0) {
+      newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
+    } else if (attendance.paymentStatus === "COVERED_BY_SUBSCRIPTION") {
+      newPaymentStatus = "UNPAID";
+    }
+
+    await db.sessionAttendance.update({
+      where: { id: attendance.id },
+      data: {
+        courtFeeShare,
+        shuttleFeeShare,
+        extraFeeShare,
+        totalAmount,
+        paymentStatus: newPaymentStatus,
+      },
+    });
+  }
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath(`/sessions/${sessionId}/split`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function togglePaymentStatus(
+  attendanceId: string,
+  newStatus: "PAID" | "UNPAID"
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const attendance = await db.sessionAttendance.findUnique({
+    where: { id: attendanceId },
+    include: {
+      session: {
+        include: {
+          club: { include: { members: true } },
+        },
+      },
+    },
+  });
+
+  if (!attendance) {
+    return { success: false, error: "Không tìm thấy thông tin điểm danh." };
+  }
+
+  const actor = attendance.session.club.members.find((m) => m.userId === session.user?.id);
+  if (!actor || (actor.role !== "ADMIN" && actor.role !== "TREASURER")) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền xác nhận tiền." };
+  }
+
+  try {
+    await db.sessionAttendance.update({
+      where: { id: attendanceId },
+      data: {
+        paymentStatus: newStatus,
+        paidAt: newStatus === "PAID" ? new Date() : null,
+        confirmedBy: newStatus === "PAID" ? session.user.id : null,
+      },
+    });
+
+    revalidatePath(`/sessions/${attendance.sessionId}`);
+    revalidatePath(`/sessions/${attendance.sessionId}/split`);
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Toggle payment status error:", error);
+    return { success: false, error: "Lỗi cập nhật trạng thái thanh toán." };
   }
 }
