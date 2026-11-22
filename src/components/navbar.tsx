@@ -4,7 +4,15 @@ import { handleSignOut } from "@/server/actions/auth";
 import { LogOut, User as UserIcon, PlusCircle, Shield, Home } from "lucide-react";
 
 export async function Navbar() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("Navbar auth error:", error);
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-black px-4 sm:px-8 py-3">

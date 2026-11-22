@@ -18,8 +18,18 @@ import {
   Calendar
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("Dashboard auth error:", error);
+  }
 
   if (!session?.user?.id) {
     redirect("/login");

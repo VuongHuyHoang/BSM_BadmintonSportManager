@@ -6,8 +6,18 @@ import { Navbar } from "@/components/navbar";
 import { ProfileHub } from "@/components/profile/profile-hub";
 import { ArrowLeft } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProfilePage() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("Profile auth error:", error);
+  }
 
   if (!session?.user?.id) {
     redirect("/login");

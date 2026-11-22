@@ -12,8 +12,18 @@ interface SplitPageProps {
   };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function SessionSplitPage({ params }: SplitPageProps) {
-  const sessionUser = await auth();
+  let sessionUser = null;
+  try {
+    sessionUser = await auth();
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("SessionSplit auth error:", error);
+  }
 
   const session = await db.badmintonSession.findUnique({
     where: { id: params.id },

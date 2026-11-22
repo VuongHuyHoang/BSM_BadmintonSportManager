@@ -29,8 +29,18 @@ interface ClubPageProps {
   };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function ClubDetailPage({ params }: ClubPageProps) {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch (error: any) {
+    if (error?.digest === "DYNAMIC_SERVER_USAGE" || error?.digest?.includes("NEXT_REDIRECT")) {
+      throw error;
+    }
+    console.error("ClubDetail auth error:", error);
+  }
 
   if (!session?.user?.id) {
     redirect("/login");

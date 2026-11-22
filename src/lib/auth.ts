@@ -5,6 +5,10 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "bsm-development-secret-key-super-secure-32chars",
   trustHost: true,
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
