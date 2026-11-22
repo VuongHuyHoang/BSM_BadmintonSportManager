@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { MemberManagement } from "@/components/club/member-management";
 import { LeaveClubButton } from "@/components/club/leave-club-button";
+import { ClubHeaderActions } from "@/components/club/club-header-actions";
 import { formatVND } from "@/lib/utils";
 import { 
   Users, 
@@ -139,17 +140,7 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
               </div>
             </div>
 
-            {isLeader && (
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/clubs/${club.id}/sessions/new`}
-                  className="px-4 py-2.5 rounded-full text-xs font-black uppercase bg-[#ffd731] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#f3cc24] transition-all flex items-center gap-1.5"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Tạo Buổi Đánh Mới</span>
-                </Link>
-              </div>
-            )}
+            <ClubHeaderActions club={club} isLeader={isLeader} />
           </div>
         </div>
 
