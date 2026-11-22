@@ -25,63 +25,66 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // 1. Lấy danh sách CLB mà người dùng đang tham gia
-  const memberships = await db.member.findMany({
-    where: {
-      userId: session.user.id,
-      isActive: true,
-    },
-    include: {
-      club: {
-        include: {
-          members: { where: { isActive: true } },
-          sessions: {
-            orderBy: { startTime: "desc" },
-            take: 1,
+  // 1, 2, 3: Chạy song song cả 3 truy vấn DB bằng Promise.all để tối ưu thời gian phản hồi
+  const [memberships, unpaidAttendances, activeSessions] = await Promise.all([
+    // 1. Lấy danh sách CLB mà người dùng đang tham gia
+    db.member.findMany({
+      where: {
+        userId: session.user.id,
+        isActive: true,
+      },
+      include: {
+        club: {
+          include: {
+            members: { where: { isActive: true } },
+            sessions: {
+              orderBy: { startTime: "desc" },
+              take: 1,
+            },
           },
         },
       },
-    },
-    orderBy: { joinedAt: "desc" },
-  });
+      orderBy: { joinedAt: "desc" },
+    }),
 
-  // 2. Lấy các khoản tiền chưa nộp của người dùng (Debt Tracker)
-  const unpaidAttendances = await db.sessionAttendance.findMany({
-    where: {
-      member: {
-        userId: session.user.id,
+    // 2. Lấy các khoản tiền chưa nộp của người dùng (Debt Tracker)
+    db.sessionAttendance.findMany({
+      where: {
+        member: {
+          userId: session.user.id,
+        },
+        paymentStatus: "UNPAID",
       },
-      paymentStatus: "UNPAID",
-    },
-    include: {
-      session: {
-        include: { club: true },
-      },
-    },
-    orderBy: { session: { startTime: "desc" } },
-  });
-
-  const totalUnpaid = unpaidAttendances.reduce((acc, curr) => acc + curr.totalAmount, 0);
-
-  // 3. Lấy các buổi đánh đang diễn ra hoặc sắp tới của các CLB mà user tham gia
-  const activeSessions = await db.badmintonSession.findMany({
-    where: {
-      club: {
-        members: {
-          some: { userId: session.user.id, isActive: true },
+      include: {
+        session: {
+          include: { club: true },
         },
       },
-      status: { in: ["ONGOING", "SCHEDULED"] },
-    },
-    include: {
-      club: true,
-      attendances: {
-        where: { member: { userId: session.user.id } },
+      orderBy: { session: { startTime: "desc" } },
+    }),
+
+    // 3. Lấy các buổi đánh đang diễn ra hoặc sắp tới của các CLB mà user tham gia
+    db.badmintonSession.findMany({
+      where: {
+        club: {
+          members: {
+            some: { userId: session.user.id, isActive: true },
+          },
+        },
+        status: { in: ["ONGOING", "SCHEDULED"] },
       },
-    },
-    orderBy: { startTime: "asc" },
-    take: 3,
-  });
+      include: {
+        club: true,
+        attendances: {
+          where: { member: { userId: session.user.id } },
+        },
+      },
+      orderBy: { startTime: "asc" },
+      take: 3,
+    }),
+  ]);
+
+  const totalUnpaid = unpaidAttendances.reduce((acc, curr) => acc + curr.totalAmount, 0);
 
   return (
     <div className="min-h-screen bg-[#dceeff] text-black">
@@ -187,6 +190,7 @@ export default async function DashboardPage() {
 
                     <Link
                       href={`/sessions/${s.id}`}
+                      prefetch={true}
                       className={`w-full py-2 px-3 rounded-xl text-xs font-black uppercase border border-black shadow-[2px_2px_0px_#000000] transition-colors flex items-center justify-center gap-1.5 ${
                         isCheckedIn
                           ? "bg-white text-black hover:bg-zinc-100"
@@ -323,6 +327,7 @@ export default async function DashboardPage() {
                       </span>
                       <Link
                         href={`/clubs/${club.id}`}
+                        prefetch={true}
                         className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black uppercase bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 transition-colors"
                       >
                         <span>Vào CLB</span>

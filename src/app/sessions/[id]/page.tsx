@@ -99,6 +99,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
         {/* Breadcrumb Back */}
         <Link
           href={`/clubs/${session.clubId}`}
+          prefetch={true}
           className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-zinc-700 hover:text-black mb-4 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -277,6 +278,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
               <div className="pt-2 border-t border-black/10">
                 <Link
                   href={`/sessions/${session.id}/split`}
+                  prefetch={true}
                   className="w-full py-3 px-4 rounded-full text-xs font-black uppercase bg-[#5c4ade] text-white border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#4b39cb] active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center gap-2"
                 >
                   <Calculator className="w-4 h-4" />

@@ -26,6 +26,7 @@ export async function Navbar() {
             <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 href="/dashboard"
+                prefetch={true}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-[#dceeff] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#c7e4ff] transition-all"
               >
                 <Home className="w-3.5 h-3.5" />
@@ -34,6 +35,7 @@ export async function Navbar() {
 
               <Link
                 href="/clubs/new"
+                prefetch={true}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-[#ffd731] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#ffcf10] transition-all"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
@@ -43,6 +45,7 @@ export async function Navbar() {
               {/* Profile Link (Desktop) */}
               <Link
                 href="/profile"
+                prefetch={true}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-[#e9ccff] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#d8b5ff] transition-all"
               >
                 <UserIcon className="w-3.5 h-3.5" />
@@ -53,6 +56,7 @@ export async function Navbar() {
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#f1f3f6] border border-black shadow-[2px_2px_0px_#000000]">
                 <Link
                   href="/profile"
+                  prefetch={true}
                   className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                   title="Xem Trang Cá Nhân"
                 >

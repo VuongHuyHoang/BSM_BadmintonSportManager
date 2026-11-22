@@ -162,6 +162,7 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
             {isLeader && (
               <Link
                 href={`/clubs/${club.id}/sessions/new`}
+                prefetch={true}
                 className="px-4 py-2 rounded-full text-xs font-black uppercase bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 transition-colors flex items-center gap-1.5 self-start sm:self-auto"
               >
                 <PlusCircle className="w-3.5 h-3.5 text-[#55db9c]" />
@@ -244,6 +245,7 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
                     <div className="pt-2 flex items-center justify-end">
                       <Link
                         href={`/sessions/${s.id}`}
+                        prefetch={true}
                         className="w-full py-2.5 px-4 rounded-xl text-xs font-black uppercase text-center bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5"
                       >
                         <span>{s.status === "COMPLETED" ? "Xem Chi Tiết Buổi Đánh" : "Vào Điểm Danh & Đếm Cầu"}</span>
