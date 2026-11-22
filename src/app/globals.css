@@ -29,7 +29,7 @@ select {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Hiệu ứng Marquee chạy mượt mà vô tận */
+/* Hiệu ứng Marquee chạy mượt mà vô tận từ trái sang phải */
 @keyframes marquee-ltr {
   0% {
     transform: translateX(-100%);
@@ -42,10 +42,31 @@ select {
 .animate-marquee-ltr {
   display: flex;
   flex-shrink: 0;
-  animation: marquee-ltr 35s linear infinite;
+  min-width: 100%;
+  animation: marquee-ltr 32s linear infinite;
   will-change: transform;
 }
 
 .animate-marquee-ltr:hover {
   animation-play-state: paused;
+}
+
+/* Hiệu ứng Sticker bồng bềnh sống động */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float-slow 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-delayed {
+  animation: float-slow 3.6s ease-in-out 1.2s infinite;
+  will-change: transform;
 }

@@ -65,7 +65,10 @@ export default function HomePage() {
 
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#ffd731] text-black border border-black shadow-[2px_2px_0px_#000000]">
-              <span className="h-2 w-2 rounded-full bg-black animate-ping"></span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-black"></span>
+              </span>
               Phase 1 Online
             </span>
             <Link 
@@ -80,22 +83,22 @@ export default function HomePage() {
 
       {/* 3. Hero Section (Slush Sky Wash + Bold Typography + Floating Stickers) */}
       <section className="px-4 pt-10 pb-12 sm:pt-16 sm:pb-16 max-w-5xl mx-auto text-center relative">
-        {/* Floating Stickers Desktop */}
-        <div className="hidden lg:block absolute left-4 top-24 rotate-[-6deg]">
-          <div className="bg-[#55db9c] border border-black px-3.5 py-1.5 rounded-2xl text-xs font-black shadow-[3px_3px_0px_#000000] flex items-center gap-1.5">
+        {/* Floating Stickers Desktop với animation bồng bềnh sống động */}
+        <div className="hidden lg:block absolute left-4 top-24 rotate-[-6deg] animate-float">
+          <div className="bg-[#55db9c] border border-black px-3.5 py-1.5 rounded-2xl text-xs font-black shadow-[3px_3px_0px_#000000] flex items-center gap-1.5 hover:scale-105 transition-transform">
             <Zap className="w-4 h-4 text-black fill-black" />
             <span>1-TAP CHECK-IN</span>
           </div>
         </div>
 
-        <div className="hidden lg:block absolute right-4 top-20 rotate-[5deg]">
-          <div className="bg-[#ffd731] border border-black px-3.5 py-1.5 rounded-2xl text-xs font-black shadow-[3px_3px_0px_#000000] flex items-center gap-1.5">
+        <div className="hidden lg:block absolute right-4 top-20 rotate-[5deg] animate-float-delayed">
+          <div className="bg-[#ffd731] border border-black px-3.5 py-1.5 rounded-2xl text-xs font-black shadow-[3px_3px_0px_#000000] flex items-center gap-1.5 hover:scale-105 transition-transform">
             <span>🏸 4 QUẢ TIÊU HAO</span>
           </div>
         </div>
 
-        <div className="hidden lg:block absolute right-10 bottom-16 rotate-[-4deg]">
-          <div className="bg-[#e9ccff] border border-black px-3.5 py-1.5 rounded-2xl text-xs font-black shadow-[3px_3px_0px_#000000] flex items-center gap-1.5">
+        <div className="hidden lg:block absolute right-10 bottom-16 rotate-[-4deg] animate-float">
+          <div className="bg-[#e9ccff] border border-black px-3.5 py-1.5 rounded-2xl text-xs font-black shadow-[3px_3px_0px_#000000] flex items-center gap-1.5 hover:scale-105 transition-transform">
             <Wallet className="w-4 h-4 text-black" />
             <span>QUỸ MINH BẠCH</span>
           </div>
@@ -218,7 +221,7 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Card 1: Mint */}
-          <div className="bg-white border border-black p-6 rounded-[22px] shadow-[5px_5px_0px_#000000] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[7px_7px_0px_#000000] transition-all">
+          <div className="bg-white border border-black p-6 rounded-[22px] shadow-[5px_5px_0px_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[7px_7px_0px_#000000] transition-all">
             <div className="h-12 w-12 rounded-2xl bg-[#55db9c] border border-black flex items-center justify-center text-black mb-4 shadow-[2px_2px_0px_#000000]">
               <Users className="w-6 h-6" />
             </div>
@@ -229,7 +232,7 @@ export default function HomePage() {
           </div>
 
           {/* Card 2: Sunburst */}
-          <div className="bg-white border border-black p-6 rounded-[22px] shadow-[5px_5px_0px_#000000] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[7px_7px_0px_#000000] transition-all">
+          <div className="bg-white border border-black p-6 rounded-[22px] shadow-[5px_5px_0px_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[7px_7px_0px_#000000] transition-all">
             <div className="h-12 w-12 rounded-2xl bg-[#ffd731] border border-black flex items-center justify-center text-black mb-4 shadow-[2px_2px_0px_#000000]">
               <Wallet className="w-6 h-6" />
             </div>
@@ -240,7 +243,7 @@ export default function HomePage() {
           </div>
 
           {/* Card 3: Violet */}
-          <div className="bg-white border border-black p-6 rounded-[22px] shadow-[5px_5px_0px_#000000] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[7px_7px_0px_#000000] transition-all">
+          <div className="bg-white border border-black p-6 rounded-[22px] shadow-[5px_5px_0px_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[7px_7px_0px_#000000] transition-all">
             <div className="h-12 w-12 rounded-2xl bg-[#e9ccff] border border-black flex items-center justify-center text-black mb-4 shadow-[2px_2px_0px_#000000]">
               <QrCode className="w-6 h-6" />
             </div>

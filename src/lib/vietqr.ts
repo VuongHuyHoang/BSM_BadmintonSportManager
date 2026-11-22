@@ -20,6 +20,7 @@ export function generateVietQRUrl({
   const cleanAccount = encodeURIComponent(accountNo.trim());
   const cleanDesc = encodeURIComponent(description.trim());
   const cleanName = accountName ? encodeURIComponent(accountName.trim()) : "";
+  const validAmount = Math.max(0, Math.round(amount || 0));
 
-  return `https://img.vietqr.io/image/${cleanBank}-${cleanAccount}-compact2.png?amount=${amount}&addInfo=${cleanDesc}${cleanName ? `&accountName=${cleanName}` : ""}`;
+  return `https://img.vietqr.io/image/${cleanBank}-${cleanAccount}-compact2.png?amount=${validAmount}&addInfo=${cleanDesc}${cleanName ? `&accountName=${cleanName}` : ""}`;
 }

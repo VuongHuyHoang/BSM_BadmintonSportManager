@@ -50,10 +50,16 @@ const config: Config = {
           '0%': { transform: 'translateX(0%)' },
           '100%': { transform: 'translateX(-100%)' },
         },
+        'float-slow': {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-6px)' },
+        },
       },
       animation: {
-        'marquee-ltr': 'marquee-ltr 30s linear infinite',
-        'marquee-rtl': 'marquee-rtl 30s linear infinite',
+        'marquee-ltr': 'marquee-ltr 32s linear infinite',
+        'marquee-rtl': 'marquee-rtl 32s linear infinite',
+        'float-slow': 'float-slow 3s ease-in-out infinite',
+        'float-delayed': 'float-slow 3.6s ease-in-out 1.2s infinite',
       },
     },
   },
