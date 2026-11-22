@@ -59,9 +59,13 @@ Lộ trình chi tiết theo từng Sprint dành cho quá trình Vibe Coding vớ
 ---
 
 ## 📊 Phase 5: Sổ Quỹ Nhóm & Tối Ưu Mobile PWA (Treasury & PWA Polish)
-- [ ] **Sổ Quỹ CLB (Treasury Ledger)**:
-  - Báo cáo thu/chi minh bạch: Quỹ tháng, tiền dư buổi đánh, tiền chi mua cầu, tiền cọc sân.
-  - Hiển thị số dư quỹ tức thời.
-- [ ] **Bảng theo dõi nợ đọng (Unpaid Tracker)**: Danh sách tổng hợp những ai còn nợ tiền buổi đánh để thủ quỹ dễ dàng nhắc nhở.
-- [ ] **Cài đặt PWA (Progressive Web App)**: Cấu hình `manifest.json`, icon app, hỗ trợ "Thêm vào màn hình chính" trên iOS/Android để mở toàn màn hình không có thanh URL.
-- [ ] **Kiểm thử Responsive & Độ tương phản**: Rà soát giao diện trên thực tế dưới ánh đèn sân cầu lông, đảm bảo không vỡ layout trên các dòng điện thoại phổ biến (iPhone, Samsung, Xiaomi).
+- [x] **Sổ Quỹ CLB (Treasury Ledger)**:
+  - Báo cáo thu/chi minh bạch: Quỹ tháng, tiền dư buổi đánh, tiền chi mua cầu, tiền cọc sân, liên hoan.
+  - Hiển thị số dư quỹ tức thời, tổng thu, tổng chi và bộ lọc danh mục trực quan.
+  - Phân quyền Trưởng nhóm & Thủ quỹ có thể thêm/xóa giao dịch thu chi.
+- [x] **Bảng theo dõi nợ đọng (Unpaid Tracker & Zalo Reminder)**:
+  - Danh sách tổng hợp những ai còn nợ tiền buổi đánh (hội viên & khách vãng lai) để thủ quỹ dễ dàng theo dõi.
+  - Nút 1-chạm sao chép tin nhắn nhắc nợ gửi Zalo định dạng đẹp (kèm icon cầu lông và STK VietQR).
+  - Nút 1-chạm xác nhận đã thu nợ tức thời (`PAID`).
+- [x] **Cài đặt PWA (Progressive Web App)**: Cấu hình `manifest.json`, icon app 192x192 & 512x512, hỗ trợ "Thêm vào màn hình chính" trên iOS/Android để mở toàn màn hình không có thanh URL.
+- [x] **Kiểm thử Responsive & Độ tương phản**: Rà soát giao diện theo Slush Design System (viền đen brutalist, tương phản cao dưới ánh đèn sân cầu lông, touch target $\ge 44\text{px}$, không vỡ layout trên các dòng điện thoại phổ biến iPhone, Samsung, Xiaomi).

@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import { Navbar } from "@/components/navbar";
-import { MemberManagement } from "@/components/club/member-management";
+import { ClubHubTabs } from "@/components/club/club-hub-tabs";
 import { LeaveClubButton } from "@/components/club/leave-club-button";
 import { ClubHeaderActions } from "@/components/club/club-header-actions";
 import { formatVND } from "@/lib/utils";
@@ -14,13 +14,9 @@ import {
   PlusCircle, 
   ArrowLeft, 
   Shield, 
-  Settings,
-  Calendar,
-  Wallet,
-  Play,
-  CheckCircle,
-  Clock,
-  ArrowRight
+  Settings, 
+  Calendar, 
+  Wallet 
 } from "lucide-react";
 
 interface ClubPageProps {
@@ -46,23 +42,47 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
     redirect("/login");
   }
 
-  const club = await db.club.findUnique({
-    where: { id: params.id },
-    include: {
-      members: {
-        where: { isActive: true },
-        orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
-      },
-      sessions: {
-        orderBy: { startTime: "desc" },
-        take: 10,
-        include: {
-          attendances: true,
-          shuttleLogs: true,
+  // Chạy song song cả 3 truy vấn DB: Thông tin CLB, Sổ Quỹ và Bảng Nợ Đọng
+  const [club, transactions, unpaidAttendances] = await Promise.all([
+    db.club.findUnique({
+      where: { id: params.id },
+      include: {
+        members: {
+          where: { isActive: true },
+          orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
+        },
+        sessions: {
+          orderBy: { startTime: "desc" },
+          take: 10,
+          include: {
+            attendances: true,
+            shuttleLogs: true,
+          },
         },
       },
-    },
-  });
+    }),
+    db.transaction.findMany({
+      where: { clubId: params.id },
+      include: {
+        member: {
+          select: { id: true, displayName: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.sessionAttendance.findMany({
+      where: {
+        session: { clubId: params.id },
+        paymentStatus: "UNPAID",
+        totalAmount: { gt: 0 },
+      },
+      include: {
+        member: true,
+        session: true,
+      },
+      orderBy: { session: { startTime: "desc" } },
+    }),
+  ]);
 
   if (!club) {
     notFound();
@@ -154,140 +174,16 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
           </div>
         </div>
 
-        {/* Section: Sessions List (Lịch Hoạt Động & Điểm Danh) */}
-        <section className="bg-white border border-black rounded-[24px] p-6 sm:p-8 shadow-[6px_6px_0px_#000000] mb-8">
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black pb-4">
-            <div>
-              <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#ffd731] text-black border border-black uppercase mb-1">
-                Sân & Điểm Danh
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black">
-                Lịch Hoạt Động Buổi Đánh ({club.sessions.length})
-              </h2>
-              <p className="text-xs text-zinc-600 font-medium">
-                Vào trực tiếp từng buổi để theo dõi điểm danh 2 chiều và đếm quả cầu live
-              </p>
-            </div>
-
-            {isLeader && (
-              <Link
-                href={`/clubs/${club.id}/sessions/new`}
-                prefetch={true}
-                className="px-4 py-2 rounded-full text-xs font-black uppercase bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 transition-colors flex items-center gap-1.5 self-start sm:self-auto"
-              >
-                <PlusCircle className="w-3.5 h-3.5 text-[#55db9c]" />
-                <span>+ Thêm Buổi Đánh</span>
-              </Link>
-            )}
-          </div>
-
-          {club.sessions.length === 0 ? (
-            <div className="py-8 px-4 text-center border-2 border-dashed border-black/20 rounded-2xl bg-[#f8fafc]">
-              <Calendar className="w-10 h-10 text-zinc-400 mx-auto mb-2" />
-              <p className="text-sm font-bold text-zinc-700">Chưa có buổi đánh nào được tạo</p>
-              <p className="text-xs text-zinc-500 mt-1 mb-4">
-                Trưởng nhóm hoặc thủ quỹ có thể bấm tạo buổi đánh để nạp tự động danh sách thành viên
-              </p>
-              {isLeader && (
-                <Link
-                  href={`/clubs/${club.id}/sessions/new`}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black uppercase bg-[#ffd731] text-black border border-black shadow-[2px_2px_0px_#000000]"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Tạo Buổi Đánh Đầu Tiên</span>
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {club.sessions.map((s) => {
-                const checkedInCount = s.attendances.filter((a) => a.isCheckedIn).length;
-                const totalShuttles = s.shuttleLogs.reduce((acc, curr) => acc + curr.quantity, 0);
-
-                return (
-                  <div
-                    key={s.id}
-                    className="border border-black rounded-[20px] p-5 shadow-[4px_4px_0px_#000000] bg-white flex flex-col justify-between hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_#000000] transition-all"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border border-black uppercase ${
-                            s.status === "ONGOING"
-                              ? "bg-[#55db9c] text-black animate-pulse"
-                              : s.status === "COMPLETED"
-                              ? "bg-[#e9ccff] text-black"
-                              : "bg-[#ffd731] text-black"
-                          }`}
-                        >
-                          {s.status === "ONGOING"
-                            ? "● Đang Đánh"
-                            : s.status === "COMPLETED"
-                            ? "✓ Đã Hoàn Tất"
-                            : "Sắp Tới"}
-                        </span>
-
-                        <span className="text-[11px] font-bold text-zinc-500">
-                          {formatSessionTime(s.startTime)}
-                        </span>
-                      </div>
-
-                      <h3 className="text-lg font-black text-black leading-tight mb-2">
-                        {s.courtName}
-                      </h3>
-
-                      <div className="space-y-1 text-xs font-semibold text-zinc-600 mb-4 bg-[#f8fafc] p-3 rounded-xl border border-black/10">
-                        <div className="flex justify-between">
-                          <span>Điểm danh có mặt:</span>
-                          <span className="font-bold text-black">{checkedInCount} / {s.attendances.length} người</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Cầu đã tiêu hao:</span>
-                          <span className="font-bold text-[#fb4903]">{totalShuttles} quả</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Tiền sân:</span>
-                          <span className="font-bold text-black">{formatVND(s.courtFee)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-end">
-                      <Link
-                        href={`/sessions/${s.id}`}
-                        prefetch={true}
-                        className="w-full py-2.5 px-4 rounded-xl text-xs font-black uppercase text-center bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <span>{s.status === "COMPLETED" ? "Xem Chi Tiết Buổi Đánh" : "Vào Điểm Danh & Đếm Cầu"}</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Member Management Section */}
-        <section className="bg-white border border-black rounded-[24px] p-6 sm:p-8 shadow-[6px_6px_0px_#000000]">
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black pb-4">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-black">
-                Danh Sách Hội Viên ({club.members.length})
-              </h2>
-              <p className="text-xs text-zinc-600 font-medium">
-                Phân loại gói tháng, thêm khách vãng lai và quản lý quyền trong CLB
-              </p>
-            </div>
-          </div>
-
-          <MemberManagement
-            clubId={club.id}
-            members={club.members}
+        {/* Section: 4 Tabs Hub (Buổi Đánh, Sổ Quỹ, Bảng Nhắc Nợ, Hội Viên) */}
+        <div className="mb-8">
+          <ClubHubTabs
+            club={club}
+            transactions={transactions}
+            unpaidAttendances={unpaidAttendances}
+            isLeader={isLeader}
             currentUserRole={currentMember?.role || null}
           />
-        </section>
+        </div>
 
         {/* Member Options / Leave Club Section */}
         {currentMember && (
