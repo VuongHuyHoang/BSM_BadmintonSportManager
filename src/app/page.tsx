@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatVND } from "@/lib/utils";
+import { Navbar } from "@/components/navbar";
 import { 
   Users, 
   Calendar, 
@@ -50,36 +51,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 2. Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-black px-4 sm:px-8 py-3.5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-[#55db9c] border border-black flex items-center justify-center font-black text-lg shadow-[2px_2px_0px_#000000]">
-              🏸
-            </div>
-            <div>
-              <span className="text-xl font-black tracking-tight text-black block leading-none">BSM</span>
-              <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">Badminton Sport Manager</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#ffd731] text-black border border-black shadow-[2px_2px_0px_#000000]">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-black"></span>
-              </span>
-              Phase 1 Online
-            </span>
-            <Link 
-              href="#demo"
-              className="px-4 py-2 rounded-full text-xs sm:text-sm font-bold bg-white text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-black hover:text-white hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] transition-all"
-            >
-              Xem Demo Sân
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* 2. Top Navigation Bar (Dynamic Auth) */}
+      <Navbar />
 
       {/* 3. Hero Section (Slush Sky Wash + Bold Typography + Floating Stickers) */}
       <section className="px-4 pt-10 pb-12 sm:pt-16 sm:pb-16 max-w-5xl mx-auto text-center relative">
@@ -124,13 +97,19 @@ export default function HomePage() {
 
         {/* CTA Button Group */}
         <div className="flex flex-wrap items-center justify-center gap-3.5 mb-12">
-          <button className="px-6 py-3 rounded-full text-sm font-extrabold bg-[#000000] text-white border border-black shadow-[4px_4px_0px_#55db9c] hover:bg-[#1a1a1a] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-2">
-            <span>Tạo Buổi Đánh Ngay</span>
+          <Link
+            href="/dashboard"
+            className="px-6 py-3 rounded-full text-sm font-extrabold bg-[#000000] text-white border border-black shadow-[4px_4px_0px_#55db9c] hover:bg-[#1a1a1a] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-2"
+          >
+            <span>Vào Bảng Điều Khiển</span>
             <ArrowRight className="w-4 h-4" />
-          </button>
-          <div className="px-5 py-3 rounded-full text-sm font-bold bg-white text-black border border-black shadow-[3px_3px_0px_#000000]">
-            3 Nhóm Hội Viên Linh Hoạt
-          </div>
+          </Link>
+          <Link
+            href="/clubs/new"
+            className="px-5 py-3 rounded-full text-sm font-bold bg-white text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-zinc-100 transition-all"
+          >
+            Tạo CLB Mới
+          </Link>
         </div>
 
         {/* 4. Live Session Card (Paper White + Hard Black Shadow) */}

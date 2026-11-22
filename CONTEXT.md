@@ -26,15 +26,16 @@
 ---
 
 ## 3. Trạng Thái Dự Án Hiện Tại
-- **Giai đoạn**: **Hoàn tất 100% Phase 1 & Đã Deploy Thành Công Lên Vercel + Supabase**.
+- **Giai đoạn**: **Hoàn tất 100% Phase 1 & Phase 2** (Đã xây dựng xong Authentication, Quản lý Đa CLB, Màn hình Hội viên, Thêm khách vãng lai và Mã mời).
 - **Môi trường Production**:
   - Hosting: Vercel (CI/CD tự động kích hoạt khi push code lên GitHub `VuongHuyHoang/BSM_BadmintonSportManager`).
   - Database: Supabase PostgreSQL (Singapore Pooler).
-  - Giao diện: Slush Design System (Neo-modern, high contrast, mobile-first touch targets $\ge 44$px).
-- **Dữ liệu mẫu đã có sẵn trên Supabase**:
-  - Tài khoản Admin (`admin@badminton.vn` / mật khẩu `123456`).
-  - Tài khoản Thủ quỹ (`treasurer@badminton.vn` / mật khẩu `123456`).
-  - Tài khoản Hội viên (`huy@badminton.vn` / mật khẩu `123456`).
-  - CLB Cầu Lông Kỳ Hòa (Mã mời: `KYHOA-CLUB`).
-  - 5 hội viên với 3 loại gói khác nhau, 1 buổi đánh mẫu và giao dịch quỹ.
-- **Bước tiếp theo**: Bắt đầu **Phase 2: Quản lý CLB & Hồ sơ Hội viên** (Màn hình Đăng nhập/Đăng ký, Tạo CLB, Quản lý hội viên & Mã mời).
+  - Giao diện: Slush Design System (Refero Style `8b6b547f`).
+- **Các trang đã hoàn thành trong Phase 2**:
+  - `/login`: Đăng nhập (hỗ trợ nút điền nhanh 3 tài khoản mẫu Admin, Thủ quỹ, Huy).
+  - `/register`: Đăng ký tài khoản mới.
+  - `/dashboard`: Bảng điều khiển cá nhân, theo dõi số nợ, danh sách CLB của tôi.
+  - `/clubs/new`: Tạo CLB mới, cấu hình STK ngân hàng VietQR & giá cầu.
+  - `/clubs/[id]`: Chi tiết CLB, quản lý danh sách hội viên, phân loại 4 gói, thêm nhanh khách vãng lai.
+  - `/join/[code]`: Trang tiếp nhận mã mời và tự động gia nhập CLB.
+- **Bước tiếp theo**: Bắt đầu **Phase 3: Quản lý Buổi Đánh & Điểm Danh 2 Chiều** (Tạo lịch buổi đánh, bộ đếm số quả cầu +/-, điểm danh tại sân).

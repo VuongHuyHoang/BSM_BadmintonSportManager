@@ -18,14 +18,15 @@ Lộ trình chi tiết theo từng Sprint dành cho quá trình Vibe Coding vớ
 ---
 
 ## 🏸 Phase 2: Quản Lý CLB & Hồ Sơ Hội Viên (Club & Membership Management)
-- [ ] Luồng tạo Câu lạc bộ (CLB): Tên nhóm, cấu hình STK ngân hàng nhận tiền VietQR, giá cầu mặc định, quy tắc làm tròn (1k/5k).
-- [ ] Cơ chế mời thành viên: Sinh mã mời (Invite Code) và liên kết nhanh (Invite Link) để người chơi tự đăng ký gia nhập nhóm.
-- [ ] Quản lý danh sách thành viên & phân loại gói:
-  - Gói Tháng Trọn Gói (`FULL_MONTHLY`).
-  - Gói Tháng Chỉ Tiền Sân (`COURT_ONLY_MONTHLY`).
-  - Đóng Theo Buổi / Khách Vãng Lai (`PAY_PER_SESSION`).
-- [ ] Chức năng thêm nhanh khách vãng lai (không bắt buộc tạo tài khoản ngay) dành cho Thủ quỹ.
-- [ ] Màn hình cá nhân (Member Dashboard): Xem trạng thái hội viên, số nợ hiện tại và lịch sử tham gia.
+- [x] Hệ thống Đăng nhập & Đăng ký tài khoản (`/login`, `/register`) với mật khẩu băm bảo mật bcrypt và NextAuth v5.
+- [x] Màn hình Bảng điều khiển cá nhân (`/dashboard`): Thống kê CLB tham gia, cảnh báo nợ chưa trả (Debt Tracker), nhập mã mời nhanh.
+- [x] Luồng tạo Câu lạc bộ (`/clubs/new`): Cấu hình tên nhóm, STK ngân hàng VietQR (chọn ngân hàng VN), giá cầu mặc định, quy tắc làm tròn (1k/5k).
+- [x] Cơ chế mã mời & liên kết nhanh (`/join/[code]`): Cho phép người chơi bấm link là tự động gia nhập CLB ngay lập tức.
+- [x] Quản lý danh sách hội viên (`/clubs/[id]`):
+  - Bộ lọc hội viên theo 4 nhóm: *Gói Tháng Trọn Gói*, *Gói Tháng Chỉ Tiền Sân*, *Đóng Theo Buổi*, *Khách Vãng Lai*.
+  - Chức năng thêm nhanh khách vãng lai (không bắt buộc tạo tài khoản ngay) dành cho Thủ quỹ/Trưởng nhóm.
+  - Phân quyền Trưởng nhóm / Thủ quỹ và thay đổi gói hội viên linh hoạt.
+- [x] Kiểm tra biên dịch sản phẩm (`npm run build`) hoàn tất 100% không có lỗi (8 routes SSR & Dynamic).
 
 ---
 
