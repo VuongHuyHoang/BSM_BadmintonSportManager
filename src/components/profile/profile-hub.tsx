@@ -139,6 +139,51 @@ export function ProfileHub({
     });
   };
 
+  // Gom nợ theo từng CLB để hỗ trợ trả gộp
+  const debtsByClub = unpaidAttendances.reduce<Record<string, {
+    club: typeof unpaidAttendances[0]["session"]["club"];
+    items: typeof unpaidAttendances;
+    total: number;
+  }>>((acc, curr) => {
+    const cId = curr.session.club.id;
+    if (!acc[cId]) {
+      acc[cId] = {
+        club: curr.session.club,
+        items: [],
+        total: 0,
+      };
+    }
+    acc[cId].items.push(curr);
+    acc[cId].total += curr.totalAmount;
+    return acc;
+  }, {});
+
+  const handleOpenBatchQR = (clubDebt: (typeof debtsByClub)[string]) => {
+    const club = clubDebt.club;
+    if (!club.bankCode || !club.bankAccountNo) {
+      alert("CLB này chưa cài đặt tài khoản ngân hàng.");
+      return;
+    }
+    const memo = `BSM ${removeVietnameseAccents(user.name || "HoiVien")} TraNo`;
+    const qrUrl = generateVietQRUrl({
+      bankCode: club.bankCode,
+      accountNo: club.bankAccountNo,
+      accountName: club.bankAccountName,
+      amount: clubDebt.total,
+      description: memo,
+    });
+    setSelectedQR({
+      courtName: `Thanh toán gộp ${clubDebt.items.length} buổi nợ`,
+      clubName: club.name,
+      amount: clubDebt.total,
+      qrUrl,
+      bankCode: club.bankCode,
+      bankAccountNo: club.bankAccountNo,
+      bankAccountName: club.bankAccountName,
+      memo,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. Header Profile Banner */}
@@ -262,6 +307,40 @@ export function ProfileHub({
       {/* TAB 1: KHOẢN CHƯA NỘP (DEBT TRACKER) */}
       {activeTab === "DEBT" && (
         <div className="space-y-4">
+          {/* Banner Thanh toán Gộp theo từng CLB */}
+          {Object.values(debtsByClub).map((clubDebt) => {
+            if (clubDebt.items.length <= 1) return null;
+            return (
+              <div
+                key={clubDebt.club.id}
+                className="bg-[#ffd731] border border-black rounded-[20px] p-4 shadow-[4px_4px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-[#ffd731]" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black uppercase text-black block leading-tight">
+                      Thanh toán gộp cho CLB {clubDebt.club.name}
+                    </span>
+                    <span className="text-[11px] font-bold text-zinc-800">
+                      Bạn có {clubDebt.items.length} buổi chưa nộp tiền, tổng: <strong>{formatVND(clubDebt.total)}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenBatchQR(clubDebt)}
+                  className="px-4 py-2 rounded-full text-xs font-black uppercase bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
+                >
+                  <QrCode className="w-4 h-4 text-[#55db9c]" />
+                  <span>Quét QR Trả Gộp ({formatVND(clubDebt.total)})</span>
+                </button>
+              </div>
+            );
+          })}
+
           {unpaidAttendances.length === 0 ? (
             <div className="bg-white border border-black rounded-[22px] p-8 text-center shadow-[4px_4px_0px_#000000]">
               <CheckCircle2 className="w-12 h-12 text-[#16a34a] mx-auto mb-2" />

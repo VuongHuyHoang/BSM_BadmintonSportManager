@@ -7,6 +7,7 @@ import {
   addMemberToSession, 
   addQuickGuestToSession,
   joinSession,
+  leaveSession,
 } from "@/server/actions/session";
 import { 
   ExtraFeeModal, 
@@ -30,6 +31,8 @@ interface AttendeeItem {
   memberId: string;
   isCheckedIn: boolean;
   checkInBy: string;
+  attendanceStatus?: string; // CONFIRMED hoặc WAITLIST
+  matchesPlayed?: number;
   paymentStatus: string;
   extraFeeShare: number;
   extraItems?: ExtraItem[];
@@ -40,6 +43,7 @@ interface AttendeeItem {
     role: string;
     membershipType: string;
     userId: string | null;
+    sponsorMemberId?: string | null;
   };
 }
 
@@ -57,6 +61,7 @@ interface AttendanceBoardProps {
   allClubMembers: ClubMemberItem[];
   currentUserId?: string | null;
   isLeader: boolean;
+  maxAttendees?: number;
 }
 
 export function AttendanceBoard({
@@ -66,6 +71,7 @@ export function AttendanceBoard({
   allClubMembers,
   currentUserId,
   isLeader,
+  maxAttendees = 0,
 }: AttendanceBoardProps) {
   const [localAttendees, setLocalAttendees] = useState(attendees);
   useEffect(() => {
@@ -73,14 +79,24 @@ export function AttendanceBoard({
   }, [attendees]);
 
   const [loadingMemberId, setLoadingMemberId] = useState<string | null>(null);
+  const [leaveLoadingId, setLeaveLoadingId] = useState<string | null>(null);
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [guestSponsorId, setGuestSponsorId] = useState("");
   const [guestLoading, setGuestLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
 
   // State mở cửa sổ Popup Phụ Phí cho thành viên
   const [selectedModalAttendee, setSelectedModalAttendee] = useState<AttendeeItem | null>(null);
+
+  // Phân chia danh sách chính thức và danh sách chờ (Waitlist)
+  const confirmedAttendees = localAttendees.filter(
+    (a) => a.attendanceStatus !== "WAITLIST"
+  );
+  const waitlistAttendees = localAttendees.filter(
+    (a) => a.attendanceStatus === "WAITLIST"
+  );
 
   // Tìm xem người đang đăng nhập có trong danh sách buổi đánh này không
   const myAttendance = currentUserId
@@ -98,6 +114,18 @@ export function AttendanceBoard({
     setJoinLoading(false);
     if (!res.success) {
       alert(res.error || "Lỗi khi đăng ký tham gia buổi đánh.");
+    }
+  };
+
+  const handleLeave = async (targetMemberId?: string) => {
+    const isSelf = !targetMemberId || (myAttendance && targetMemberId === myAttendance.memberId);
+    if (!confirm(isSelf ? "Bạn có chắc chắn muốn hủy đăng ký buổi đánh này?" : "Xóa người này khỏi buổi đánh?")) return;
+
+    setLeaveLoadingId(targetMemberId || myAttendance?.memberId || "self");
+    const res = await leaveSession(sessionId, targetMemberId);
+    setLeaveLoadingId(null);
+    if (!res.success) {
+      alert(res.error || "Lỗi khi rời buổi đánh.");
     }
   };
 
@@ -148,11 +176,18 @@ export function AttendanceBoard({
     if (!guestName.trim()) return;
     setGuestLoading(true);
 
-    const res = await addQuickGuestToSession(sessionId, clubId, guestName, guestPhone);
+    const res = await addQuickGuestToSession(
+      sessionId, 
+      clubId, 
+      guestName, 
+      guestPhone, 
+      guestSponsorId || undefined
+    );
     setGuestLoading(false);
     if (res.success) {
       setGuestName("");
       setGuestPhone("");
+      setGuestSponsorId("");
       setShowAddGuest(false);
     } else {
       alert(res.error || "Lỗi thêm khách vãng lai.");
@@ -173,7 +208,17 @@ export function AttendanceBoard({
           </h2>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {maxAttendees > 0 && (
+            <div className={`px-3 py-1.5 rounded-full text-xs font-black border border-black shadow-[2px_2px_0px_#000000] ${
+              confirmedAttendees.length >= maxAttendees
+                ? "bg-[#ffd731] text-black"
+                : "bg-white text-black"
+            }`}>
+              Slot: {confirmedAttendees.length} / {maxAttendees} chỗ
+              {waitlistAttendees.length > 0 && ` (${waitlistAttendees.length} dự bị)`}
+            </div>
+          )}
           <div className="px-3 py-1.5 rounded-full text-xs font-black bg-[#55db9c] text-black border border-black shadow-[2px_2px_0px_#000000]">
             Đã đến: {checkedInCount} / {localAttendees.length} người
           </div>
@@ -309,6 +354,23 @@ export function AttendanceBoard({
               className="w-full px-3 py-2 rounded-xl border border-black text-sm bg-white focus:outline-none shadow-[2px_2px_0px_#000000]"
             />
           </div>
+          <div className="w-full sm:w-48">
+            <label className="block text-[11px] font-black uppercase text-black mb-1">
+              Người Bảo Lãnh (Ai dẫn đi?)
+            </label>
+            <select
+              value={guestSponsorId}
+              onChange={(e) => setGuestSponsorId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-black text-xs bg-white focus:outline-none shadow-[2px_2px_0px_#000000]"
+            >
+              <option value="">Không có (Khách tự do)</option>
+              {allClubMembers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
             disabled={guestLoading}
@@ -367,6 +429,11 @@ export function AttendanceBoard({
                     {isMe && (
                       <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-[#ffd731] border border-black shrink-0 whitespace-nowrap">
                         Bạn
+                      </span>
+                    )}
+                    {a.attendanceStatus === "WAITLIST" && (
+                      <span className="px-2 py-0.2 rounded text-[10px] font-black bg-[#ffd731] text-black border border-black shrink-0 whitespace-nowrap">
+                        ⏳ Danh Sách Chờ (Dự Bị)
                       </span>
                     )}
                   </div>
@@ -436,21 +503,40 @@ export function AttendanceBoard({
                 </div>
               </div>
 
-              {/* Status Badge */}
-              <div className="text-right shrink-0">
+              {/* Status Badge & Actions */}
+              <div className="text-right shrink-0 flex flex-col items-end gap-1">
                 <span
                   className={`px-2.5 py-1 rounded-full text-xs font-black uppercase border border-black shadow-[1px_1px_0px_#000000] inline-block shrink-0 whitespace-nowrap ${
-                    a.isCheckedIn
+                    a.attendanceStatus === "WAITLIST"
+                      ? "bg-[#ffd731] text-black"
+                      : a.isCheckedIn
                       ? "bg-[#55db9c] text-black"
                       : "bg-[#f1f3f6] text-zinc-500"
                   }`}
                 >
-                  {a.isCheckedIn ? "Đã Đến Sân" : "Chưa Đến"}
+                  {a.attendanceStatus === "WAITLIST"
+                    ? "Chờ Slot"
+                    : a.isCheckedIn
+                    ? "Đã Đến Sân"
+                    : "Chưa Đến"}
                 </span>
                 {a.isCheckedIn && a.checkInBy === "SELF" && (
-                  <span className="text-[9px] text-zinc-500 font-bold block mt-0.5">
+                  <span className="text-[9px] text-zinc-500 font-bold block">
                     Tự check-in
                   </span>
+                )}
+
+                {/* Nút hủy đăng ký hoặc Leader xóa người */}
+                {(isMe || isLeader) && a.paymentStatus !== "PAID" && (
+                  <button
+                    type="button"
+                    disabled={leaveLoadingId === a.memberId}
+                    onClick={() => handleLeave(a.memberId)}
+                    className="text-[10px] font-bold text-zinc-400 hover:text-[#e11d48] transition-colors mt-0.5"
+                    title={isMe ? "Hủy đăng ký buổi này" : "Xóa khỏi buổi đánh"}
+                  >
+                    {isMe ? "Rút lui" : "Bỏ ra"}
+                  </button>
                 )}
               </div>
             </div>

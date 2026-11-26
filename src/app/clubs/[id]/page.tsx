@@ -59,6 +59,14 @@ export default async function ClubDetailPage({ params }: ClubPageProps) {
             shuttleLogs: true,
           },
         },
+        monthlyPeriods: {
+          orderBy: [{ year: "desc" }, { month: "desc" }],
+          include: {
+            payments: {
+              include: { member: true },
+            },
+          },
+        },
       },
     }),
     db.transaction.findMany({

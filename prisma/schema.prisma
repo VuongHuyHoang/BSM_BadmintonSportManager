@@ -82,10 +82,12 @@ model Club {
   bankAccountName     String?            @map("bank_account_name")
   defaultShuttlePrice Int                @default(25000) @map("default_shuttle_price")
   roundingMode        String             @default("CEIL_1K") @map("rounding_mode") // CEIL_1K, CEIL_5K, EXACT
+  shuttleStock        Int                @default(0) @map("shuttle_stock")
   
   members             Member[]
   sessions            BadmintonSession[]
   transactions        Transaction[]
+  monthlyPeriods      MonthlySubscriptionPeriod[]
 
   createdAt           DateTime           @default(now()) @map("created_at")
   updatedAt           DateTime           @updatedAt @map("updated_at")
@@ -103,29 +105,35 @@ model Member {
   membershipType   String              @default("PAY_PER_SESSION") @map("membership_type") // FULL_MONTHLY, COURT_ONLY_MONTHLY, PAY_PER_SESSION, GUEST
   monthlyFeeAmount Int?                @map("monthly_fee_amount")
   isActive         Boolean             @default(true) @map("is_active")
+  sponsorMemberId  String?             @map("sponsor_member_id")
 
   club             Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
   user             User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sponsor          Member?             @relation("MemberSponsorship", fields: [sponsorMemberId], references: [id], onDelete: SetNull)
+  sponsoredGuests  Member[]            @relation("MemberSponsorship")
   attendances      SessionAttendance[]
   transactions     Transaction[]
+  monthlyPayments  MonthlyMemberPayment[]
 
   joinedAt         DateTime            @default(now()) @map("joined_at")
 
   @@index([clubId, userId])
   @@index([clubId, isActive])
+  @@index([sponsorMemberId])
   @@map("members")
 }
 
 model BadmintonSession {
-  id           String              @id @default(cuid())
-  clubId       String              @map("club_id")
-  startTime    DateTime            @map("start_time")
-  endTime      DateTime            @map("end_time")
-  courtName    String              @map("court_name")
+  id                  String              @id @default(cuid())
+  clubId              String              @map("club_id")
+  startTime           DateTime            @map("start_time")
+  endTime             DateTime            @map("end_time")
+  courtName           String              @map("court_name")
   courtFee            Int                 @default(0) @map("court_fee")
   otherFee            Int                 @default(0) @map("other_fee")
   status              String              @default("SCHEDULED") // SCHEDULED, ONGOING, COMPLETED, CANCELLED
   hasExtendedDuration Boolean             @default(false) @map("has_extended_duration")
+  maxAttendees        Int                 @default(0) @map("max_attendees") // 0 = Không giới hạn
 
   club         Club                @relation(fields: [clubId], references: [id], onDelete: Cascade)
   shuttleLogs  ShuttleLog[]
@@ -153,26 +161,29 @@ model ShuttleLog {
 }
 
 model SessionAttendance {
-  id              String           @id @default(cuid())
-  sessionId       String           @map("session_id")
-  memberId        String           @map("member_id")
-  isCheckedIn     Boolean          @default(false) @map("is_checked_in")
-  checkInBy       String           @default("SELF") @map("check_in_by") // SELF, TREASURER
-  courtFeeShare   Int              @default(0) @map("court_fee_share")
-  shuttleFeeShare Int              @default(0) @map("shuttle_fee_share")
-  extraFeeShare   Int              @default(0) @map("extra_fee_share")
-  totalAmount     Int              @default(0) @map("total_amount")
-  paymentStatus   String           @default("UNPAID") @map("payment_status") // UNPAID, PAID, COVERED_BY_SUBSCRIPTION
-  paidAt          DateTime?        @map("paid_at")
-  confirmedBy     String?          @map("confirmed_by")
+  id               String           @id @default(cuid())
+  sessionId        String           @map("session_id")
+  memberId         String           @map("member_id")
+  isCheckedIn      Boolean          @default(false) @map("is_checked_in")
+  checkInBy        String           @default("SELF") @map("check_in_by") // SELF, TREASURER
+  attendanceStatus String           @default("CONFIRMED") @map("attendance_status") // CONFIRMED, WAITLIST
+  matchesPlayed    Int              @default(0) @map("matches_played") // Số trận đã đánh tại buổi
+  courtFeeShare    Int              @default(0) @map("court_fee_share")
+  shuttleFeeShare  Int              @default(0) @map("shuttle_fee_share")
+  extraFeeShare    Int              @default(0) @map("extra_fee_share")
+  totalAmount      Int              @default(0) @map("total_amount")
+  paymentStatus    String           @default("UNPAID") @map("payment_status") // UNPAID, PAID, COVERED_BY_SUBSCRIPTION
+  paidAt           DateTime?        @map("paid_at")
+  confirmedBy      String?          @map("confirmed_by")
 
-  session         BadmintonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  member          Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  extraItems      AttendanceExtraItem[]
+  session          BadmintonSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  member           Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  extraItems       AttendanceExtraItem[]
 
   @@unique([sessionId, memberId])
   @@index([memberId, paymentStatus])
   @@index([paymentStatus, totalAmount])
+  @@index([sessionId, attendanceStatus])
   @@map("session_attendances")
 }
 
@@ -208,4 +219,39 @@ model Transaction {
   @@index([clubId, createdAt])
   @@index([sessionId])
   @@map("transactions")
+}
+
+model MonthlySubscriptionPeriod {
+  id          String   @id @default(cuid())
+  clubId      String   @map("club_id")
+  month       Int      // 1 - 12
+  year        Int      // VD: 2026
+  title       String   // "Quỹ Cố Định Tháng 11/2026"
+  feeAmount   Int      @map("fee_amount") // Mức thu mặc định
+  dueDate     DateTime? @map("due_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  payments    MonthlyMemberPayment[]
+
+  @@unique([clubId, month, year])
+  @@index([clubId, year, month])
+  @@map("monthly_subscription_periods")
+}
+
+model MonthlyMemberPayment {
+  id          String                    @id @default(cuid())
+  periodId    String                    @map("period_id")
+  memberId    String                    @map("member_id")
+  amount      Int                       // Số tiền phải nộp
+  isPaid      Boolean                   @default(false) @map("is_paid")
+  paidAt      DateTime?                 @map("paid_at")
+  confirmedBy String?                   @map("confirmed_by")
+
+  period      MonthlySubscriptionPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  member      Member                    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([periodId, memberId])
+  @@index([memberId, isPaid])
+  @@map("monthly_member_payments")
 }

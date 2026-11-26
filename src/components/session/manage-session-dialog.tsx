@@ -13,6 +13,7 @@ interface ManageSessionDialogProps {
   initialDurationHours: number;
   initialCourtFee: number;
   initialOtherFee: number;
+  initialMaxAttendees?: number;
   sessionStatus: string;
 }
 
@@ -24,6 +25,7 @@ export function ManageSessionDialog({
   initialDurationHours,
   initialCourtFee,
   initialOtherFee,
+  initialMaxAttendees = 0,
   sessionStatus,
 }: ManageSessionDialogProps) {
   const router = useRouter();
@@ -47,6 +49,7 @@ export function ManageSessionDialog({
   const [durationHours, setDurationHours] = useState(initialDurationHours.toString());
   const [courtFee, setCourtFee] = useState(initialCourtFee.toString());
   const [otherFee, setOtherFee] = useState(initialOtherFee.toString());
+  const [maxAttendees, setMaxAttendees] = useState(initialMaxAttendees.toString());
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +60,7 @@ export function ManageSessionDialog({
     formData.append("durationHours", durationHours);
     formData.append("courtFee", courtFee);
     formData.append("otherFee", otherFee);
+    formData.append("maxAttendees", maxAttendees);
 
     const res = await editSession(sessionId, formData);
     setLoading(false);
@@ -200,6 +204,24 @@ export function ManageSessionDialog({
                     className="w-full px-3 py-2 rounded-xl border border-black bg-[#f8fafc] text-xs focus:outline-none shadow-[2px_2px_0px_#000000]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block uppercase text-[10px] font-black text-zinc-600 mb-1">
+                  Giới Hạn Slot Người Đánh (0 = Không giới hạn)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={maxAttendees}
+                  onChange={(e) => setMaxAttendees(e.target.value)}
+                  placeholder="VD: 8 (1 sân thường từ 6-8 người)"
+                  className="w-full px-3 py-2 rounded-xl border border-black bg-[#f8fafc] text-xs focus:outline-none shadow-[2px_2px_0px_#000000]"
+                />
+                <span className="text-[10px] text-zinc-500 font-normal block mt-1">
+                  Nếu đủ số lượng, người đăng ký sau sẽ tự động vào Danh Sách Chờ (Waitlist).
+                </span>
               </div>
 
               <div className="pt-3 border-t border-black/10 flex justify-end gap-2">

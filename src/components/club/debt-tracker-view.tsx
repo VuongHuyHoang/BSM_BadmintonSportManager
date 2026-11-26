@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { formatVND } from "@/lib/utils";
-import { togglePaymentStatus } from "@/server/actions/session";
+import { formatVND, generateVietQRUrl } from "@/lib/utils";
+import { togglePaymentStatus, settleAllDebtsForMember } from "@/server/actions/session";
 import { 
   AlertCircle, 
   Copy, 
@@ -11,9 +11,12 @@ import {
   Calendar, 
   User, 
   Phone, 
-  Share2,
+  Share2, 
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  QrCode,
+  CheckCheck,
+  X
 } from "lucide-react";
 import Link from "next/link";
 
@@ -52,6 +55,11 @@ export function DebtTrackerView({
 }: DebtTrackerViewProps) {
   const [copiedZalo, setCopiedZalo] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [batchLoadingMemberId, setBatchLoadingMemberId] = useState<string | null>(null);
+  const [qrModalMember, setQrModalMember] = useState<{
+    displayName: string;
+    totalAmount: number;
+  } | null>(null);
 
   // Gom nhóm danh sách nợ theo từng thành viên
   const groupedDebts = unpaidAttendances.reduce<Record<string, {
@@ -115,6 +123,17 @@ ${bankInfo}
     setConfirmingId(attendanceId);
     await togglePaymentStatus(attendanceId, "PAID");
     setConfirmingId(null);
+  };
+
+  const handleSettleAll = async (memberId: string) => {
+    if (!isLeader) return;
+    if (!confirm("Xác nhận đã nhận đủ tiền và gạch nợ toàn bộ các buổi cho thành viên này?")) return;
+    setBatchLoadingMemberId(memberId);
+    const res = await settleAllDebtsForMember(club.id, memberId);
+    setBatchLoadingMemberId(null);
+    if (!res.success) {
+      alert(res.error || "Lỗi gạch nợ hàng loạt.");
+    }
   };
 
   return (
@@ -246,11 +265,40 @@ ${bankInfo}
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 self-start sm:self-center">
-                    <span className="text-xs font-bold text-zinc-500">Tổng nợ:</span>
-                    <span className="text-lg font-black text-[#fb4903]">
-                      {formatVND(d.totalUnpaid)}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                    <div className="text-right mr-1">
+                      <span className="text-[10px] font-bold text-zinc-500 block">Tổng nợ:</span>
+                      <span className="text-base sm:text-lg font-black text-[#fb4903] block leading-tight">
+                        {formatVND(d.totalUnpaid)}
+                      </span>
+                    </div>
+
+                    {/* Nút xem mã VietQR thu gộp */}
+                    {club.bankCode && club.bankAccountNo && (
+                      <button
+                        type="button"
+                        onClick={() => setQrModalMember({ displayName: d.member.displayName, totalAmount: d.totalUnpaid })}
+                        className="px-2.5 py-1.5 rounded-xl border border-black bg-[#5c4ade] text-white shadow-[2px_2px_0px_#000000] hover:bg-[#4b39cb] transition-colors flex items-center gap-1 text-[11px] font-black uppercase"
+                        title="Tạo mã VietQR chuyển gộp toàn bộ"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>QR Gộp</span>
+                      </button>
+                    )}
+
+                    {/* Nút xác nhận thu toàn bộ */}
+                    {isLeader && (
+                      <button
+                        type="button"
+                        disabled={batchLoadingMemberId === d.member.id}
+                        onClick={() => handleSettleAll(d.member.id)}
+                        className="px-3 py-1.5 rounded-xl border border-black bg-[#55db9c] text-black shadow-[2px_2px_0px_#000000] hover:bg-[#42c586] transition-all flex items-center gap-1 text-[11px] font-black uppercase"
+                        title="Xác nhận gạch nợ tất cả các buổi"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" />
+                        <span>{batchLoadingMemberId === d.member.id ? "Đang Gạch..." : `Gạch Hết (${d.items.length})`}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -296,6 +344,58 @@ ${bankInfo}
           </div>
         )}
       </div>
+
+      {/* Modal Xem Mã VietQR Thu Gộp */}
+      {qrModalMember && club.bankCode && club.bankAccountNo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border-2 border-black rounded-[24px] p-6 max-w-sm w-full shadow-[8px_8px_0px_#000000] space-y-4 text-center">
+            <div className="flex items-center justify-between pb-2 border-b border-black">
+              <h3 className="text-sm font-black uppercase text-black flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-[#5c4ade]" />
+                <span>VietQR Thu Nợ Gộp</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setQrModalMember(null)}
+                className="p-1 rounded-full hover:bg-zinc-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <span className="text-xs text-zinc-600 font-semibold block">
+                {qrModalMember.displayName}
+              </span>
+              <span className="text-2xl font-black text-[#fb4903] block mt-0.5 tracking-tight">
+                {formatVND(qrModalMember.totalAmount)}
+              </span>
+              <span className="text-[10px] font-bold text-zinc-500 block">
+                Thanh toán toàn bộ các buổi nợ đọng
+              </span>
+            </div>
+
+            <div className="bg-white p-3 border-2 border-black rounded-2xl shadow-[4px_4px_0px_#000000] inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={generateVietQRUrl({
+                  bankCode: club.bankCode,
+                  accountNo: club.bankAccountNo,
+                  accountName: club.bankAccountName || club.name,
+                  amount: qrModalMember.totalAmount,
+                  description: `BSM TraNo ${qrModalMember.displayName}`,
+                })}
+                alt="VietQR nợ gộp"
+                className="w-56 h-auto mx-auto rounded-lg"
+              />
+            </div>
+
+            <p className="text-[11px] text-zinc-500 font-medium">
+              Quét mã 1 lần duy nhất bằng app ngân hàng để chuyển khoản toàn bộ công nợ.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

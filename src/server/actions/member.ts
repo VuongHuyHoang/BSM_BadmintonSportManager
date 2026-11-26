@@ -24,6 +24,7 @@ export async function addGuestMember(clubId: string, formData: FormData) {
 
   const displayName = (formData.get("displayName") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();
+  const sponsorMemberId = (formData.get("sponsorMemberId") as string) || null;
 
   if (!displayName) {
     return { success: false, error: "Vui lòng nhập tên người chơi." };
@@ -35,6 +36,7 @@ export async function addGuestMember(clubId: string, formData: FormData) {
         clubId,
         displayName,
         phone: phone || null,
+        sponsorMemberId,
         role: "MEMBER",
         membershipType: "GUEST",
         isActive: true,

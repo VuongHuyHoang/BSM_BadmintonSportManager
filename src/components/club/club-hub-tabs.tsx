@@ -6,6 +6,7 @@ import { formatVND } from "@/lib/utils";
 import { TreasuryView } from "@/components/club/treasury-view";
 import { DebtTrackerView } from "@/components/club/debt-tracker-view";
 import { MemberManagement } from "@/components/club/member-management";
+import { MonthlySubscriptionView } from "@/components/club/monthly-subscription-view";
 import { 
   Calendar, 
   Wallet, 
@@ -15,7 +16,8 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  CreditCard
 } from "lucide-react";
 
 interface SessionItem {
@@ -80,8 +82,10 @@ interface ClubHubTabsProps {
     bankCode: string | null;
     bankAccountNo: string | null;
     bankAccountName: string | null;
+    shuttleStock?: number;
     members: ClubMember[];
     sessions: SessionItem[];
+    monthlyPeriods?: any[];
   };
   transactions: TransactionItem[];
   unpaidAttendances: UnpaidItem[];
@@ -96,7 +100,7 @@ export function ClubHubTabs({
   isLeader,
   currentUserRole,
 }: ClubHubTabsProps) {
-  const [activeTab, setActiveTab] = useState<"SESSIONS" | "TREASURY" | "DEBTS" | "MEMBERS">("SESSIONS");
+  const [activeTab, setActiveTab] = useState<"SESSIONS" | "TREASURY" | "DEBTS" | "MEMBERS" | "MONTHLY_FUND">("SESSIONS");
 
   const formatSessionTime = (date: Date) => {
     return new Intl.DateTimeFormat("vi-VN", {
@@ -168,6 +172,27 @@ export function ClubHubTabs({
           <Users className="w-3.5 h-3.5" />
           <span>Hội Viên ({club.members.length})</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("MONTHLY_FUND")}
+          className={`px-4 py-2.5 rounded-full text-xs font-black uppercase border border-black flex items-center gap-1.5 transition-all ${
+            activeTab === "MONTHLY_FUND"
+              ? "bg-[#5c4ade] text-white shadow-[3px_3px_0px_#000000]"
+              : "bg-white text-black hover:bg-zinc-100"
+          }`}
+        >
+          <CreditCard className="w-3.5 h-3.5" />
+          <span>Quỹ Tháng ({club.monthlyPeriods?.length || 0})</span>
+        </button>
+
+        {/* Widget Kho Cầu CLB */}
+        <div className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-black uppercase bg-[#ffffff] text-black border border-black shadow-[2px_2px_0px_#000000]">
+          <span>🏸 Tồn kho: <strong className="text-[#fb4903]">{club.shuttleStock || 0}</strong> quả</span>
+          {(club.shuttleStock || 0) <= 12 && (
+            <span className="text-[10px] text-amber-600 font-bold">(Cần mua thêm)</span>
+          )}
+        </div>
       </div>
 
       {/* TAB 1: SESSIONS (Lịch Hoạt Động & Điểm Danh) */}
@@ -316,6 +341,19 @@ export function ClubHubTabs({
             currentUserRole={currentUserRole}
           />
         </section>
+      )}
+
+      {/* TAB 5: MONTHLY FUND (Quản Lý Quỹ Tháng Cố Định) */}
+      {activeTab === "MONTHLY_FUND" && (
+        <MonthlySubscriptionView
+          clubId={club.id}
+          clubName={club.name}
+          bankCode={club.bankCode}
+          bankAccountNo={club.bankAccountNo}
+          bankAccountName={club.bankAccountName}
+          monthlyPeriods={club.monthlyPeriods || []}
+          isLeader={isLeader}
+        />
       )}
     </div>
   );

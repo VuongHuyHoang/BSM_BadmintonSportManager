@@ -41,15 +41,30 @@ export async function createTransaction(formData: FormData) {
   }
 
   try {
-    await db.transaction.create({
-      data: {
-        clubId,
-        type,
-        category,
-        amount,
-        description: description || (type === "INCOME" ? "Thu quỹ CLB" : "Chi tiêu CLB"),
-        memberId: memberId || null,
-      },
+    const shuttleTubesStr = formData.get("shuttleTubes") as string;
+    const shuttleTubes = shuttleTubesStr ? parseInt(shuttleTubesStr, 10) : 0;
+
+    await db.$transaction(async (tx) => {
+      await tx.transaction.create({
+        data: {
+          clubId,
+          type,
+          category,
+          amount,
+          description: description || (type === "INCOME" ? "Thu quỹ CLB" : "Chi tiêu CLB"),
+          memberId: memberId || null,
+        },
+      });
+
+      // Nếu là chi mua cầu và có nhập số ống, tự động tăng tồn kho CLB (1 ống = 12 quả)
+      if (type === "EXPENSE" && category === "BUY_SHUTTLE" && shuttleTubes > 0) {
+        await tx.club.update({
+          where: { id: clubId },
+          data: {
+            shuttleStock: { increment: shuttleTubes * 12 },
+          },
+        });
+      }
     });
 
     revalidatePath(`/clubs/${clubId}`);

@@ -8,6 +8,7 @@ import { AttendanceBoard } from "@/components/session/attendance-board";
 import { ExtraFeeWidget } from "@/components/session/extra-fee-widget";
 import { ExtendDurationWidget } from "@/components/session/extend-duration-widget";
 import { ManageSessionDialog } from "@/components/session/manage-session-dialog";
+import { CourtMatchmaker } from "@/components/session/court-matchmaker";
 import { formatVND } from "@/lib/utils";
 import { updateSessionStatus } from "@/server/actions/session";
 import { 
@@ -179,6 +180,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
                   initialDurationHours={durationHours}
                   initialCourtFee={session.courtFee}
                   initialOtherFee={session.otherFee}
+                  initialMaxAttendees={session.maxAttendees}
                   sessionStatus={session.status}
                 />
 
@@ -231,14 +233,29 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
 
         {/* 2. Main Grid: Left (Attendance Board) & Right (Shuttle Counter + Costs) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cột Trái: Bảng Điểm Danh 2 Chiều (Chiếm 2 phần) */}
-          <div className="lg:col-span-2">
+          {/* Cột Trái: Bảng Điểm Danh 2 Chiều + Bảng Bốc Thăm Sắp Trận */}
+          <div className="lg:col-span-2 space-y-6">
             <AttendanceBoard
               sessionId={session.id}
               clubId={session.clubId}
               attendees={session.attendances}
               allClubMembers={session.club.members}
               currentUserId={sessionUser?.user?.id}
+              isLeader={isLeader}
+              maxAttendees={session.maxAttendees}
+            />
+
+            {/* Bảng Bốc Thăm & Sắp Trận Live Trên Sân */}
+            <CourtMatchmaker
+              sessionId={session.id}
+              players={session.attendances.map((a) => ({
+                id: a.id,
+                memberId: a.memberId,
+                displayName: a.member.displayName,
+                matchesPlayed: a.matchesPlayed || 0,
+                isCheckedIn: a.isCheckedIn,
+                attendanceStatus: a.attendanceStatus || "CONFIRMED",
+              }))}
               isLeader={isLeader}
             />
           </div>

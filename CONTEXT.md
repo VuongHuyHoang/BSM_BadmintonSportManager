@@ -26,7 +26,14 @@
 ---
 
 ## 3. Trạng Thái Dự Án Hiện Tại
-- **Giai đoạn**: **Hoàn tất 100% Phase 1 đến Phase 5** (Nền tảng, Quản lý CLB & Hội viên, Buổi đánh & Điểm danh 2 chiều, Động cơ chia tiền VietQR động, Sổ quỹ nhóm & PWA Mobile).
+- **Giai đoạn**: **Hoàn tất 100% Phase 1 đến Phase 5 và Các Cải Tiến Thực Chiến Giai Đoạn 6**:
+  - **Quỹ Tháng Cố Định (Monthly Subscription)**: Tạo đợt thu quỹ theo tháng, theo dõi danh sách nộp/chưa nộp, tự động hạch toán thu quỹ vào Sổ Quỹ.
+  - **Thanh Toán Gộp Công Nợ (Batch Settlement)**: Quét 1 mã VietQR duy nhất gộp nhiều buổi nợ, Thủ quỹ gạch nợ hàng loạt 1 chạm trong atomic transaction.
+  - **Giới Hạn Slot & Danh Sách Chờ (Waitlist Engine)**: Cài đặt sức chứa buổi đánh, tự động xếp vào danh sách chờ và tự động đôn người khi có chỗ trống.
+  - **Bảng Bốc Thăm & Sắp Trận Live (Court Matchmaker)**: Thuật toán chia cặp 4 người công bằng dựa trên số trận đã đánh trên sân.
+  - **Quản Lý Kho Cầu CLB (Shuttlecock Inventory)**: Nhập kho theo ống (12 quả/ống), tự động trừ kho khi kết thúc buổi đánh, cảnh báo sắp hết cầu.
+  - **Bảo Lãnh Khách Vãng Lai (Guest Sponsorship)**: Gán hội viên bảo lãnh cho khách đến chơi.
+  - **Bộ Test Case Toàn Diện**: `docs/TEST_CASES.md` và script kiểm thử tự động `scripts/test-system.ts`.
 - **Môi trường Production**:
   - Hosting: Vercel (CI/CD tự động kích hoạt khi push code lên GitHub `VuongHuyHoang/BSM_BadmintonSportManager` nhánh `main`, Region: Singapore `sin1`).
   - Database: Supabase PostgreSQL (Singapore Pooler port 6543, pgbouncer=true).

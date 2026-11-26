@@ -38,6 +38,7 @@ export function AddTransactionModal({
   const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState("");
   const [memberId, setMemberId] = useState<string>("");
+  const [shuttleTubes, setShuttleTubes] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -58,6 +59,9 @@ export function AddTransactionModal({
     formData.append("description", description);
     if (memberId) {
       formData.append("memberId", memberId);
+    }
+    if (type === "EXPENSE" && category === "BUY_SHUTTLE" && shuttleTubes > 0) {
+      formData.append("shuttleTubes", shuttleTubes.toString());
     }
 
     const res = await createTransaction(formData);
@@ -167,6 +171,28 @@ export function AddTransactionModal({
               )}
             </select>
           </div>
+
+          {/* Nhập số ống cầu nếu chi mua cầu */}
+          {type === "EXPENSE" && category === "BUY_SHUTTLE" && (
+            <div className="bg-[#fff7ed] border border-amber-300 rounded-xl p-3">
+              <label className="block text-[11px] font-black uppercase text-amber-950 mb-1">
+                Số Ống Cầu Mua (Tự Động Nhập Kho CLB)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={shuttleTubes || ""}
+                  onChange={(e) => setShuttleTubes(parseInt(e.target.value, 10) || 0)}
+                  placeholder="VD: 5 ống"
+                  className="w-36 px-3 py-2 rounded-lg border border-black bg-white text-xs font-bold focus:outline-none"
+                />
+                <span className="text-xs font-bold text-amber-900">
+                  = {shuttleTubes * 12} quả cầu nhập kho
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 3. Số tiền (VND) */}
           <div>

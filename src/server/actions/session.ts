@@ -29,6 +29,7 @@ export async function createSession(clubId: string, formData: FormData) {
   const durationHours = parseFloat((formData.get("durationHours") as string) || "2");
   const courtFee = parseInt((formData.get("courtFee") as string) || "180000", 10);
   const otherFee = parseInt((formData.get("otherFee") as string) || "0", 10);
+  const maxAttendees = parseInt((formData.get("maxAttendees") as string) || "0", 10);
 
   if (!startTimeStr) {
     return { success: false, error: "Vui lòng chọn thời gian bắt đầu." };
@@ -63,6 +64,7 @@ export async function createSession(clubId: string, formData: FormData) {
         endTime,
         courtFee: isNaN(courtFee) ? 0 : courtFee,
         otherFee: isNaN(otherFee) ? 0 : otherFee,
+        maxAttendees: isNaN(maxAttendees) ? 0 : Math.max(0, maxAttendees),
         status: "SCHEDULED",
         // Tạo sẵn 1 bản ghi đếm cầu mặc định
         shuttleLogs: {
@@ -73,11 +75,12 @@ export async function createSession(clubId: string, formData: FormData) {
             totalAmount: 0,
           },
         },
-        // Tự động nạp sẵn hội viên cố định (FULL_MONTHLY & COURT_ONLY_MONTHLY) với isCheckedIn = false
+        // Tự động nạp sẵn hội viên cố định (FULL_MONTHLY & COURT_ONLY_MONTHLY) với isCheckedIn = false, status = CONFIRMED
         attendances: {
           create: club.members.map((m) => ({
             memberId: m.id,
             isCheckedIn: false,
+            attendanceStatus: "CONFIRMED",
             checkInBy: "SELF",
             courtFeeShare: 0,
             shuttleFeeShare: 0,
@@ -120,6 +123,8 @@ export async function editSession(sessionId: string, formData: FormData) {
   const durationHours = parseFloat((formData.get("durationHours") as string) || "2");
   const courtFee = parseInt((formData.get("courtFee") as string) || String(badmSession.courtFee), 10);
   const otherFee = parseInt((formData.get("otherFee") as string) || String(badmSession.otherFee), 10);
+  const maxAttendeesStr = formData.get("maxAttendees") as string;
+  const maxAttendees = maxAttendeesStr !== null ? parseInt(maxAttendeesStr, 10) : badmSession.maxAttendees;
 
   let startTime = badmSession.startTime;
   let endTime = badmSession.endTime;
@@ -137,6 +142,7 @@ export async function editSession(sessionId: string, formData: FormData) {
         endTime,
         courtFee: isNaN(courtFee) ? badmSession.courtFee : Math.max(0, courtFee),
         otherFee: isNaN(otherFee) ? badmSession.otherFee : Math.max(0, otherFee),
+        maxAttendees: isNaN(maxAttendees) ? badmSession.maxAttendees : Math.max(0, maxAttendees),
       },
     });
 
@@ -294,10 +300,22 @@ export async function addMemberToSession(sessionId: string, memberId: string) {
       },
     });
 
+    // Kiểm tra slot còn trống không
+    const confirmedCount = await db.sessionAttendance.count({
+      where: { sessionId, attendanceStatus: "CONFIRMED" },
+    });
+    const targetStatus = (badmSession.maxAttendees > 0 && confirmedCount >= badmSession.maxAttendees)
+      ? "WAITLIST"
+      : "CONFIRMED";
+
     if (existing) {
       await db.sessionAttendance.update({
         where: { id: existing.id },
-        data: { isCheckedIn: true, checkInBy: "TREASURER" },
+        data: {
+          attendanceStatus: targetStatus,
+          isCheckedIn: targetStatus === "CONFIRMED",
+          checkInBy: "TREASURER",
+        },
       });
     } else {
       const member = await db.member.findUnique({ where: { id: memberId } });
@@ -305,7 +323,8 @@ export async function addMemberToSession(sessionId: string, memberId: string) {
         data: {
           sessionId,
           memberId,
-          isCheckedIn: true,
+          attendanceStatus: targetStatus,
+          isCheckedIn: targetStatus === "CONFIRMED",
           checkInBy: "TREASURER",
           paymentStatus: member?.membershipType === "FULL_MONTHLY" ? "COVERED_BY_SUBSCRIPTION" : "UNPAID",
         },
@@ -320,7 +339,7 @@ export async function addMemberToSession(sessionId: string, memberId: string) {
   }
 }
 
-// Chức năng cho phép thành viên tự đăng ký tham gia buổi đánh
+// Chức năng cho phép thành viên tự đăng ký tham gia buổi đánh (hỗ trợ Waitlist)
 export async function joinSession(sessionId: string) {
   const sessionUser = await auth();
   if (!sessionUser?.user?.id) {
@@ -348,6 +367,13 @@ export async function joinSession(sessionId: string) {
       return { success: false, error: "Bạn chưa là thành viên của CLB này." };
     }
 
+    // Kiểm tra số slot đã CONFIRMED
+    const confirmedCount = await db.sessionAttendance.count({
+      where: { sessionId, attendanceStatus: "CONFIRMED" },
+    });
+    const isFull = badmSession.maxAttendees > 0 && confirmedCount >= badmSession.maxAttendees;
+    const targetStatus = isFull ? "WAITLIST" : "CONFIRMED";
+
     const existing = await db.sessionAttendance.findUnique({
       where: {
         sessionId_memberId: { sessionId, memberId: member.id },
@@ -357,14 +383,19 @@ export async function joinSession(sessionId: string) {
     if (existing) {
       await db.sessionAttendance.update({
         where: { id: existing.id },
-        data: { isCheckedIn: true, checkInBy: "SELF" },
+        data: {
+          attendanceStatus: targetStatus,
+          isCheckedIn: targetStatus === "CONFIRMED",
+          checkInBy: "SELF",
+        },
       });
     } else {
       await db.sessionAttendance.create({
         data: {
           sessionId,
           memberId: member.id,
-          isCheckedIn: true,
+          attendanceStatus: targetStatus,
+          isCheckedIn: targetStatus === "CONFIRMED",
           checkInBy: "SELF",
           paymentStatus: member.membershipType === "FULL_MONTHLY" ? "COVERED_BY_SUBSCRIPTION" : "UNPAID",
         },
@@ -374,10 +405,90 @@ export async function joinSession(sessionId: string) {
     revalidatePath(`/sessions/${sessionId}`);
     revalidatePath("/dashboard");
     revalidatePath("/profile");
-    return { success: true };
+    return { 
+      success: true, 
+      status: targetStatus,
+      message: targetStatus === "WAITLIST" 
+        ? "Buổi đánh đã đủ số lượng, bạn đã được xếp vào Danh Sách Chờ (Dự Bị)!" 
+        : "Đăng ký tham gia thành công!" 
+    };
   } catch (error) {
     console.error("Join session error:", error);
     return { success: false, error: "Lỗi khi đăng ký tham gia buổi đánh." };
+  }
+}
+
+// Chức năng rời buổi đánh hoặc Leader xóa người khỏi buổi (Tự động đôn người từ Waitlist lên)
+export async function leaveSession(sessionId: string, targetMemberId?: string) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const currentUserId = sessionUser.user.id;
+
+  try {
+    const badmSession = await db.badmintonSession.findUnique({
+      where: { id: sessionId },
+      include: { club: { include: { members: true } } },
+    });
+
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    const currentMember = badmSession.club.members.find((m) => m.userId === currentUserId);
+    const isLeader = currentMember?.role === "ADMIN" || currentMember?.role === "TREASURER";
+
+    // Xác định memberId cần xóa: nếu là Leader truyền targetMemberId thì xóa người đó, ngược lại xóa chính mình
+    const memberIdToDelete = (isLeader && targetMemberId) ? targetMemberId : currentMember?.id;
+    if (!memberIdToDelete) {
+      return { success: false, error: "Không tìm thấy hội viên cần rời buổi." };
+    }
+
+    const attendance = await db.sessionAttendance.findUnique({
+      where: { sessionId_memberId: { sessionId, memberId: memberIdToDelete } },
+    });
+
+    if (!attendance) {
+      return { success: false, error: "Hội viên chưa tham gia buổi đánh này." };
+    }
+
+    if (attendance.paymentStatus === "PAID") {
+      return { success: false, error: "Không thể rời buổi đánh khi đã thanh toán tiền." };
+    }
+
+    const wasConfirmed = attendance.attendanceStatus === "CONFIRMED";
+
+    // Xóa điểm danh
+    await db.sessionAttendance.delete({
+      where: { id: attendance.id },
+    });
+
+    // Nếu người vừa rời ở vị trí CONFIRMED, tự động đôn người đầu tiên trong WAITLIST lên
+    if (wasConfirmed) {
+      const firstWaitlist = await db.sessionAttendance.findFirst({
+        where: { sessionId, attendanceStatus: "WAITLIST" },
+        orderBy: { id: "asc" },
+      });
+
+      if (firstWaitlist) {
+        await db.sessionAttendance.update({
+          where: { id: firstWaitlist.id },
+          data: {
+            attendanceStatus: "CONFIRMED",
+            isCheckedIn: true,
+          },
+        });
+      }
+    }
+
+    revalidatePath(`/sessions/${sessionId}`);
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Leave session error:", error);
+    return { success: false, error: "Lỗi khi rời buổi đánh." };
   }
 }
 
@@ -385,7 +496,8 @@ export async function addQuickGuestToSession(
   sessionId: string,
   clubId: string,
   displayName: string,
-  phone?: string
+  phone?: string,
+  sponsorMemberId?: string
 ) {
   const sessionUser = await auth();
   if (!sessionUser?.user?.id) {
@@ -398,23 +510,25 @@ export async function addQuickGuestToSession(
   }
 
   try {
-    // 1. Tạo Member loại GUEST trong CLB
+    // 1. Tạo Member loại GUEST trong CLB kèm người bảo lãnh nếu có
     const guestMember = await db.member.create({
       data: {
         clubId,
         displayName: displayName.trim(),
         phone: phone?.trim() || null,
+        sponsorMemberId: sponsorMemberId || null,
         role: "MEMBER",
         membershipType: "GUEST",
         isActive: true,
       },
     });
 
-    // 2. Thêm ngay vào buổi đánh với isCheckedIn = true
+    // 2. Thêm ngay vào buổi đánh với isCheckedIn = true, attendanceStatus = CONFIRMED
     await db.sessionAttendance.create({
       data: {
         sessionId,
         memberId: guestMember.id,
+        attendanceStatus: "CONFIRMED",
         isCheckedIn: true,
         checkInBy: "TREASURER",
         paymentStatus: "UNPAID",
@@ -538,10 +652,26 @@ export async function updateSessionStatus(
       return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền thay đổi trạng thái buổi đánh." };
     }
 
+    const previousStatus = badmSession.status;
     await db.badmintonSession.update({
       where: { id: sessionId },
       data: { status: newStatus },
     });
+
+    // Nếu buổi đánh chuyển sang COMPLETED lần đầu, tự động trừ số lượng quả cầu đã tiêu thụ vào kho CLB
+    if (newStatus === "COMPLETED" && previousStatus !== "COMPLETED") {
+      const shuttleLog = await db.shuttleLog.findFirst({
+        where: { sessionId },
+      });
+      if (shuttleLog && shuttleLog.quantity > 0) {
+        await db.club.update({
+          where: { id: badmSession.clubId },
+          data: {
+            shuttleStock: { decrement: shuttleLog.quantity },
+          },
+        });
+      }
+    }
 
     revalidatePath(`/sessions/${sessionId}`);
     revalidatePath(`/clubs/${badmSession.clubId}`);
@@ -1053,5 +1183,98 @@ export async function togglePaymentStatus(
   } catch (error) {
     console.error("Toggle payment status error:", error);
     return { success: false, error: "Lỗi cập nhật trạng thái thanh toán." };
+  }
+}
+
+// Gạch nợ toàn bộ các buổi đánh cho 1 hội viên (Thanh toán gộp / Batch Settlement)
+export async function settleAllDebtsForMember(clubId: string, memberId: string) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const isLeader = await checkLeaderRole(clubId, sessionUser.user.id);
+  if (!isLeader) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền gạch nợ." };
+  }
+
+  try {
+    // Tìm tất cả các buổi đánh có attendance chưa thanh toán của member này trong CLB
+    const unpaidAttendances = await db.sessionAttendance.findMany({
+      where: {
+        memberId,
+        paymentStatus: "UNPAID",
+        session: { clubId },
+      },
+      select: { id: true, sessionId: true },
+    });
+
+    if (unpaidAttendances.length === 0) {
+      return { success: false, error: "Thành viên này không còn khoản nợ nào chưa thanh toán." };
+    }
+
+    const attendanceIds = unpaidAttendances.map((a) => a.id);
+    const now = new Date();
+    const currentUserId = sessionUser.user.id;
+
+    await db.$transaction(
+      attendanceIds.map((id) =>
+        db.sessionAttendance.update({
+          where: { id },
+          data: {
+            paymentStatus: "PAID",
+            paidAt: now,
+            confirmedBy: currentUserId,
+          },
+        })
+      )
+    );
+
+    revalidatePath(`/clubs/${clubId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/profile");
+    return { success: true, count: attendanceIds.length };
+  } catch (error) {
+    console.error("Settle all debts error:", error);
+    return { success: false, error: "Lỗi khi gạch nợ toàn bộ các buổi đánh." };
+  }
+}
+
+// Ghi nhận trận đấu tại sân (Court Matchmaker / Queue Rotation)
+export async function recordMatch(sessionId: string, playerMemberIds: string[]) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  if (!playerMemberIds || playerMemberIds.length === 0) {
+    return { success: false, error: "Vui lòng chọn danh sách người chơi trong trận." };
+  }
+
+  try {
+    const badmSession = await db.badmintonSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    // Tăng matchesPlayed cho những thành viên tham gia trận
+    await db.$transaction(
+      playerMemberIds.map((memberId) =>
+        db.sessionAttendance.updateMany({
+          where: { sessionId, memberId },
+          data: {
+            matchesPlayed: { increment: 1 },
+          },
+        })
+      )
+    );
+
+    revalidatePath(`/sessions/${sessionId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Record match error:", error);
+    return { success: false, error: "Lỗi ghi nhận trận đấu." };
   }
 }
