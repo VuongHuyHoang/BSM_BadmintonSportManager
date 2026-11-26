@@ -26,6 +26,7 @@ erDiagram
     CLUBS ||--o{ TRANSACTIONS : logs_fund
     SESSIONS ||--o{ SESSION_ATTENDANCES : contains
     MEMBERS ||--o{ SESSION_ATTENDANCES : participates
+    SESSION_ATTENDANCES ||--o{ ATTENDANCE_EXTRA_ITEMS : has_items
     SESSIONS ||--o{ SHUTTLE_LOGS : records
     MEMBERS ||--o{ TRANSACTIONS : pays
 
@@ -72,6 +73,7 @@ erDiagram
         int court_fee
         int other_fee
         string status "SCHEDULED | ONGOING | COMPLETED | CANCELLED"
+        boolean has_extended_duration
         datetime created_at
     }
 
@@ -87,6 +89,16 @@ erDiagram
         string payment_status "UNPAID | PAID | COVERED_BY_SUBSCRIPTION"
         datetime paid_at "nullable"
         string confirmed_by "nullable"
+    }
+
+    ATTENDANCE_EXTRA_ITEMS {
+        string id PK
+        string attendance_id FK
+        string item_name "Revive, Quấn cán, Nước suối..."
+        int quantity
+        int unit_price
+        int total_price
+        datetime created_at
     }
 
     SHUTTLE_LOGS {
@@ -112,32 +124,35 @@ erDiagram
 
 ---
 
-## 3. Kiến Trúc Thư Mục Source Code Dự Kiến
+## 3. Kiến Trúc Thư Mục Source Code Thực Tế
 
 ```text
 src/
-├── app/                         # App Router
-│   ├── (auth)/                  # Đăng nhập, đăng ký, quên mật khẩu
-│   ├── dashboard/               # Trang chủ người dùng (lịch đánh, số nợ của tôi)
-│   ├── sessions/                # Quản lý buổi đánh
-│   │   ├── [id]/
-│   │   │   ├── page.tsx         # Chi tiết buổi đánh & hóa đơn cá nhân
-│   │   │   └── check-in/        # Màn hình điểm danh & cập nhật số cầu
-│   ├── members/                 # Quản lý danh sách thành viên & gói tháng
-│   ├── treasury/                # Quản lý sổ quỹ & đối soát thanh toán
-│   └── settings/                # Cài đặt CLB & tài khoản nhận VietQR
+├── app/                         # Next.js 14 App Router
+│   ├── (auth)/                  # Đăng nhập (/login), đăng ký (/register)
+│   ├── api/auth/                # NextAuth route handler ([...nextauth])
+│   ├── dashboard/               # Bảng điều khiển cá nhân (Debt Tracker & CLB của tôi)
+│   ├── profile/                 # Hồ sơ cá nhân, lịch sử đóng tiền & nợ
+│   ├── clubs/                   # Quản lý CLB
+│   │   ├── new/                 # Tạo CLB mới, cấu hình VietQR & giá cầu
+│   │   └── [id]/                # Chi tiết CLB 4-Tab Hub (Buổi đánh, Sổ quỹ, Bảng nợ, Hội viên)
+│   │       └── sessions/new/    # Tạo buổi đánh mới (Server guard 3 lớp)
+│   ├── sessions/                # Chi tiết buổi đánh
+│   │   └── [id]/                # Điểm danh 2 chiều, đếm cầu, phụ phí riêng, gia hạn giờ
+│   │       └── split/           # Bảng chia tiền thông minh & VietQR Napas247 động
+│   ├── join/[code]/             # Tham gia CLB bằng mã mời
+│   ├── error.tsx                # Global Error Boundary (kèm F5 reload & dashboard link)
+│   └── not-found.tsx            # Global 404 Not Found Page
 ├── components/
-│   ├── ui/                      # Base UI (Button, Dialog, Input, Card...)
-│   ├── session/                 # ShuttleCounter (+ / -), CheckInToggle, BillSummary
-│   └── payment/                 # VietQRCodeCard, PaymentStatusBadge
+│   ├── navbar.tsx               # Header điều hướng chung
+│   ├── club/                    # Hub tabs, TreasuryView, DebtTrackerView, MemberManagement, Modals
+│   ├── session/                 # AttendanceBoard, ShuttleCounter, ExtraFeeWidget, SplitBillView
+│   └── profile/                 # ProfileHub (Tổng hợp nợ, lịch sử thanh toán)
 ├── lib/
-│   ├── auth/                    # NextAuth / Supabase helper
-│   ├── finance/                 # Pure calculation logic (làm tròn, chia bill)
-│   ├── vietqr.ts                # Generator link VietQR QuickLink
-│   └── utils.ts
-├── server/
-│   ├── db.ts                    # Prisma / Drizzle connection
-│   └── actions/                 # Server actions (auth, session, attendance, finance)
-└── types/
-    └── index.ts                 # Type definitions
+│   ├── auth.ts                  # Cấu hình NextAuth v5 (hỗ trợ insensitive email & phone login)
+│   ├── db.ts                    # Prisma Client singleton
+│   ├── utils.ts                 # formatVND, roundFee, generateVietQRUrl, removeVietnameseAccents
+│   └── vietqr.ts                # Generator link VietQR QuickLink
+└── server/
+    └── actions/                 # Next.js Server Actions (auth, club, member, session, treasury)
 ```

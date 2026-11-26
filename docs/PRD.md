@@ -40,33 +40,55 @@ Hệ thống hoạt động theo mô hình **Đa tài khoản (Multi-user)**: m�
   - **Thành viên theo buổi / Vãng lai (Pay-Per-Session / Guest)**: Chia tiền theo từng buổi tham gia (hoặc áp dụng mức giá cố định theo quy định CLB).
 
 ### 3.2. Quản Lý Buổi Đánh & Điểm Danh (Session & Attendance)
-- **Tạo buổi đánh**: Ngày giờ, tên sân, thời lượng thuê, tiền sân thực tế.
+- **Tạo buổi đánh**: Ngày giờ, tên sân, thời lượng thuê, tiền sân thực tế. Tự động nạp danh sách hội viên cố định vào buổi đánh.
 - **Điểm danh 2 chiều**:
   - Thành viên tự mở app bấm Check-in khi đến sân.
   - Thủ quỹ kiểm tra và tick xác nhận có mặt (hoặc check-in nhanh cho người không mang điện thoại).
+  - Thêm nhanh khách vãng lai trực tiếp ngay tại sân.
 - **Ghi nhận quả cầu (Shuttlecock Counter)**:
   - Giao diện siêu nhanh: Nút `+` và `-` to bản để cộng trừ số quả cầu mở hộp trong buổi.
   - Đơn giá cầu lấy theo cài đặt mặc định của nhóm (có thể sửa linh hoạt).
+- **Quản lý phụ phí linh hoạt**:
+  - Phụ phí riêng từng người (nước uống, quấn cán, tất vớ) với giao diện popup chuyên dụng, tự động gộp dòng sản phẩm cùng tên.
+  - Phụ phí chung cả nhóm (nước đá, phí phát sinh).
+  - Gia hạn số giờ đánh trên sân (tối đa 1 lần, tự cộng giờ và phụ phí sân phát sinh).
 
 ### 3.3. Động Cơ Chia Tiền Thông Minh (Smart Expense Splitting Engine)
 - Tự động phân loại chi phí theo từng đối tượng:
-  - Thành viên trọn gói: Tiền buổi đánh = 0đ (Hệ thống ghi nhận trạng thái đã bao trọn).
-  - Thành viên chỉ đóng sân tháng: Tiền buổi đánh = Tiền cầu chia đều + Phụ phí (nếu có).
-  - Khách vãng lai / Đóng theo buổi: Chia đều toàn bộ (Tiền sân + Tiền cầu) hoặc tính giá vãng lai cố định.
-- Cơ chế làm tròn tiền phong trào (Ceil lên 1.000đ hoặc 5.000đ).
-- Phần chênh lệch dôi dư từ làm tròn tự động ghi nhận là khoản thu vào Quỹ nhóm.
+  - Thành viên trọn gói: Tiền buổi đánh = 0đ (Hệ thống ghi nhận trạng thái đã bao trọn) + Phụ phí riêng (nếu có).
+  - Thành viên chỉ đóng sân tháng: Tiền buổi đánh = Tiền cầu chia đều + Phụ phí chung chia đều + Phụ phí riêng (nếu có).
+  - Khách vãng lai / Đóng theo buổi: Chia đều tiền sân + tiền cầu + phụ phí chung + phụ phí riêng (hoặc tùy chọn thu giá vãng lai cố định).
+- Cơ chế làm tròn tiền phong trào (Ceil lên 1.000đ hoặc 5.000đ theo cài đặt CLB).
+- Tùy chọn thu giá cố định cho khách vãng lai.
 
 ### 3.4. Thanh Toán VietQR & Đối Soát Thủ Quỹ
 - Sinh mã VietQR chuẩn Napas247 cá nhân hóa cho từng thành viên:
   - STK và ngân hàng của Thủ quỹ.
   - Số tiền chính xác sau khi đã làm tròn.
   - Nội dung chuyển khoản chuẩn: `BSM [Tên] [Mã_Buổi]`.
-- Nút "Copy thông tin" hoặc "Tải ảnh QR" để gửi vào nhóm Zalo.
-- Thủ quỹ kiểm tra thông báo tài khoản và bấm "Xác nhận đã nộp" trên màn hình quản lý buổi.
+- Nút 1-chạm sao chép bảng kê chi tiết buổi đánh (icon 🏸, STK VietQR, danh sách người nộp) gửi nhóm Zalo.
+- Thủ quỹ kiểm tra thông báo tài khoản và bấm "Xác nhận đã nộp" (`PAID`) với phản hồi Optimistic 0ms.
 
-### 3.5. Sổ Quỹ & Minh Bạch Tài Chính (Treasury & Fund Balance)
-- Ghi nhận mọi dòng tiền thu (tiền buổi, tiền tháng, tiền quỹ tài trợ) và chi (mua cầu, cọc sân, liên hoan).
-- Báo cáo số dư quỹ tức thì, danh sách các thành viên còn nợ tiền buổi đánh.
+### 3.5. Sổ Quỹ & Theo Dõi Nợ (Treasury & Debt Tracker)
+- **Sổ Quỹ CLB (Treasury Ledger)**:
+  - Báo cáo thu/chi minh bạch: Quỹ tháng, tiền dư buổi đánh, tiền chi mua cầu, tiền cọc sân, liên hoan.
+  - 3 Thẻ KPI tài chính: Số dư quỹ khả dụng, Tổng thu, Tổng chi.
+  - Bộ lọc danh mục giao dịch trực quan.
+  - Modal thêm khoản thu/chi linh hoạt dành cho Trưởng nhóm/Thủ quỹ.
+- **Bảng Theo Dõi Nợ CLB (Club Debt Tracker)**:
+  - Danh sách tổng hợp những ai còn nợ tiền buổi đánh (hội viên & khách vãng lai) gom nhóm theo từng người.
+  - Liệt kê cụ thể từng buổi còn nợ tiền.
+  - Nút 1-chạm sao chép tin nhắn nhắc nợ Zalo kèm STK chuyển khoản.
+  - Nút 1-chạm xác nhận đã thu nợ tức thời (`PAID`).
+- **Trang Cá Nhân & Tra Cứu Nợ Riêng (`/profile`)**:
+  - Tra cứu các khoản nợ cá nhân chưa thanh toán.
+  - Lịch sử các buổi đánh đã thanh toán.
+  - Danh sách CLB tham gia và vai trò.
+
+### 3.6. Tối Ưu Mobile & Ứng Dụng PWA (Progressive Web App)
+- Hỗ trợ cài đặt "Thêm vào màn hình chính" (Add to Home Screen) trên cả iOS và Android.
+- Khởi chạy ở chế độ toàn màn hình (`display: standalone`), không thanh URL trình duyệt.
+- Tương thích tốt dưới ánh đèn sân cầu lông, touch target $\ge 44$px.
 
 ---
 

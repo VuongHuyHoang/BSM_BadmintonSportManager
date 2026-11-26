@@ -41,25 +41,32 @@ Thành viên này không phải trả tiền sân, nhưng phải chịu tiền c
 
 ### C. Đối với thành viên Đóng Theo Buổi / Khách Vãng Lai (`PAY_PER_SESSION` / `GUEST`)
 Chịu toàn bộ các khoản chi phí của buổi đánh (Tiền sân + Tiền cầu + Phụ phí) chia đều:
-- **Tiền sân chia đều**:
-  $$Share_{court} = \frac{C_{court}}{N_{court\_payers}}$$
-  *(Trong đó $N_{court\_payers} = N_{session}$, vì các thành viên cố định đã trả tiền sân theo tháng vào quỹ CLB)*.
-- **Tổng tiền thô**:
-  $$Fee_{session\_raw} = Share_{court} + Share_{shuttle} + Share_{extra}$$
-- **Làm tròn lên 1.000đ**:
-  $$Fee_{session} = \lceil \frac{Fee_{session\_raw}}{1000} \rceil \times 1000$$
+- **Tùy chọn 1: Tiền sân chia đều trên tổng số người có mặt thực tế** (Mặc định trong hệ thống):
+  $$Share_{court} = \frac{C_{court}}{N_{present}}$$
+  *(Thành viên gói tháng được miễn phần tiền sân này do đã đóng vào quỹ tháng đầu kỳ; khách vãng lai chỉ đóng đúng định mức phần sân chia đều theo đầu người của họ)*.
+- **Tùy chọn 2: Mức Giá Vãng Lai Cố Định** (Ví dụ CLB quy định khách vãng lai luôn đóng 60.000đ hoặc 70.000đ/buổi):
+  $$Fee_{session} = \text{Giá cố định} + \text{Phụ phí riêng từng người}$$
+  *(Không cần chia lẻ tiền sân/cầu; khoản chênh lệch thặng dư sẽ chảy vào quỹ CLB)*.
+- **Tùy chọn 3: Tiền sân chia trên số người đóng theo buổi** ($N_{session}$):
+  $$Share_{court} = \frac{C_{court}}{N_{session}}$$
+  *(Áp dụng cho các nhóm tự phát không có quỹ tháng, chi phí thuê sân chia đều cho những người trả theo buổi)*.
 
-*(Trường hợp CLB áp dụng **Mức Giá Vãng Lai Cố Định** - ví dụ 50.000đ/buổi: $Fee_{session} = \text{Giá cố định}$, không cần chia lẻ).*
+- **Tổng tiền thô (theo tùy chọn 1)**:
+  $$Fee_{session\_raw} = Share_{court} + Share_{shuttle} + Share_{extra}$$
+- **Làm tròn lên 1.000đ hoặc 5.000đ** (theo cấu hình CLB `CEIL_1K` / `CEIL_5K`):
+  $$Fee_{session} = \lceil \frac{Fee_{session\_raw}}{RoundUnit} \rceil \times RoundUnit$$
 
 ---
 
 ## 3. Quản Lý Tiền Dôi Dư & Hạch Toán Quỹ Nhóm (Club Fund Accrual)
 Tổng tiền thực tế thu từ các thành viên trong buổi đánh ($Total_{collected}$):
-$$Total_{collected} = (N_{court\_only} \times Fee_{court\_only}) + (N_{session} \times Fee_{session})$$
+$$Total_{collected} = (N_{court\_only} \times Fee_{court\_only}) + (N_{session} \times Fee_{session}) + \sum \text{Phụ phí riêng}$$
 
-- Khoản chi phí thực tế phát sinh trong buổi cần bù trừ ($Cost_{actual}$):
-  - Nếu tiền sân đã thanh toán từ quỹ tháng của CLB: Khoản cần thu về chỉ là $C_{shuttle} + C_{extra}$.
-- Số tiền dư do làm tròn hoặc từ giá vãng lai cố định được tự động sinh một giao dịch loại `INCOME`, hạng mục `SESSION_FEE` vào Sổ Quỹ của CLB.
+- **Khoản chênh lệch thặng dư buổi đánh (Session Surplus)**:
+  $$\Delta = Total_{collected} - Cost_{actual\_payable}$$
+- **Cơ chế hạch toán**:
+  - Hiện tại: Thủ quỹ có thể chủ động ghi nhận khoản dôi dư này vào tab **Sổ Quỹ** với danh mục `SESSION_SURPLUS` (Dôi dư buổi đánh).
+  - Khuyến nghị nâng cấp tiếp theo: Tự động tạo giao dịch `INCOME` (hạng mục `SESSION_SURPLUS`) vào bảng `Transaction` ngay khi toàn bộ người tham gia hoàn tất thanh toán (`PAID`).
 
 ---
 

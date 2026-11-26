@@ -26,16 +26,29 @@
 ---
 
 ## 3. Trạng Thái Dự Án Hiện Tại
-- **Giai đoạn**: **Hoàn tất 100% Phase 1 & Phase 2** (Đã xây dựng xong Authentication, Quản lý Đa CLB, Màn hình Hội viên, Thêm khách vãng lai và Mã mời).
+- **Giai đoạn**: **Hoàn tất 100% Phase 1 đến Phase 5** (Nền tảng, Quản lý CLB & Hội viên, Buổi đánh & Điểm danh 2 chiều, Động cơ chia tiền VietQR động, Sổ quỹ nhóm & PWA Mobile).
 - **Môi trường Production**:
-  - Hosting: Vercel (CI/CD tự động kích hoạt khi push code lên GitHub `VuongHuyHoang/BSM_BadmintonSportManager`).
-  - Database: Supabase PostgreSQL (Singapore Pooler).
-  - Giao diện: Slush Design System (Refero Style `8b6b547f`).
-- **Các trang đã hoàn thành trong Phase 2**:
-  - `/login`: Đăng nhập (hỗ trợ nút điền nhanh 3 tài khoản mẫu Admin, Thủ quỹ, Huy).
-  - `/register`: Đăng ký tài khoản mới.
-  - `/dashboard`: Bảng điều khiển cá nhân, theo dõi số nợ, danh sách CLB của tôi.
+  - Hosting: Vercel (CI/CD tự động kích hoạt khi push code lên GitHub `VuongHuyHoang/BSM_BadmintonSportManager` nhánh `main`, Region: Singapore `sin1`).
+  - Database: Supabase PostgreSQL (Singapore Pooler port 6543, pgbouncer=true).
+  - Giao diện: Slush Design System (Paper White, viền đen 1px, shadow `[4px_4px_0px_#000000]`, touch target $\ge 44$px).
+  - PWA: Progressive Web App hoàn chỉnh (`manifest.json`, icon 192x192 & 512x512, standalone mode).
+- **Các trang chức năng đã hoàn thành**:
+  - `/`: Trang giới thiệu Landing Page.
+  - `/login`: Đăng nhập (hỗ trợ cả Email & Số điện thoại, không phân biệt hoa thường, nút bật/tắt xem mật khẩu, nút điền nhanh tài khoản mẫu).
+  - `/register`: Đăng ký tài khoản (hỗ trợ nút xem mật khẩu, autoCapitalize none).
+  - `/dashboard`: Bảng điều khiển cá nhân, cảnh báo nợ (Debt Tracker), danh sách CLB của tôi.
+  - `/profile`: Trang cá nhân, lịch sử các buổi đánh đã thanh toán và danh sách nợ cần đóng.
   - `/clubs/new`: Tạo CLB mới, cấu hình STK ngân hàng VietQR & giá cầu.
-  - `/clubs/[id]`: Chi tiết CLB, quản lý danh sách hội viên, phân loại 4 gói, thêm nhanh khách vãng lai.
+  - `/clubs/[id]`: Trung tâm điều hành CLB 4-Tab (Buổi đánh, Sổ quỹ, Bảng nhắc nợ toàn CLB kèm tiện ích copy Zalo, Hội viên & Phân quyền).
+  - `/clubs/[id]/sessions/new`: Tạo buổi đánh mới (bảo vệ quyền Admin/Treasurer 3 lớp).
+  - `/sessions/[id]`: Chi tiết buổi đánh, điểm danh 2 chiều, bộ đếm cầu live, quản lý phụ phí riêng từng người (nước, quấn cán), gia hạn giờ chơi.
+  - `/sessions/[id]/split`: Bảng chia tiền thông minh, sinh mã VietQR Napas247 động, xác nhận đã nộp 1-chạm, copy tóm tắt Zalo.
   - `/join/[code]`: Trang tiếp nhận mã mời và tự động gia nhập CLB.
-- **Bước tiếp theo**: Bắt đầu **Phase 3: Quản lý Buổi Đánh & Điểm Danh 2 Chiều** (Tạo lịch buổi đánh, bộ đếm số quả cầu +/-, điểm danh tại sân).
+
+---
+
+## 4. Những Điểm Kỹ Thuật & Nghiệp Vụ Cần Chú Ý Cho AI Agent
+1. **Kiểm tra quyền Server Actions**: Cần đảm bảo các Server Action cập nhật trạng thái buổi đánh, điểm danh và đếm cầu luôn được bọc trong hàm kiểm tra `auth()` và vai trò `ADMIN` / `TREASURER` trong CLB.
+2. **Toàn vẹn dữ liệu khi xóa hội viên**: Không được dùng `db.member.delete` trực tiếp vì sẽ Cascade Delete toàn bộ lịch sử điểm danh và nợ cũ của hội viên; bắt buộc dùng Soft-Delete (`isActive = false`).
+3. **Tính toán tài chính**: Tiền tệ trong database luôn là số nguyên VND (`Int`). Khi chia tiền, luôn áp dụng quy tắc làm tròn (lên 1k/5k) theo cấu hình CLB.
+4. **Hạch toán tự động vào Sổ quỹ**: Phần tiền dôi dư từ làm tròn của các buổi đánh đã hoàn tất cần được đồng bộ tự động vào bảng `Transaction` để sổ quỹ luôn khớp với thực tế.
