@@ -43,24 +43,6 @@ export function removeVietnameseAccents(str: string): string {
 }
 
 /**
- * Sinh link ảnh mã VietQR Napas247 chuẩn quốc gia
+ * Re-export tiện ích VietQR chuẩn quốc gia
  */
-export function generateVietQRUrl({
-  bankCode,
-  accountNo,
-  accountName,
-  amount,
-  description,
-}: {
-  bankCode: string;
-  accountNo: string;
-  accountName?: string | null;
-  amount: number;
-  description: string;
-}): string {
-  const cleanBank = bankCode.trim();
-  const cleanAccount = accountNo.trim();
-  const cleanDesc = encodeURIComponent(removeVietnameseAccents(description).slice(0, 50));
-  const cleanName = accountName ? encodeURIComponent(accountName.trim().toUpperCase()) : "";
-  return `https://img.vietqr.io/image/${cleanBank}-${cleanAccount}-compact2.png?amount=${Math.round(amount)}&addInfo=${cleanDesc}${cleanName ? `&accountName=${cleanName}` : ""}`;
-}
+export { generateVietQRUrl, type VietQRParams } from "./vietqr";

@@ -7,6 +7,7 @@ import { ShuttleCounter } from "@/components/session/shuttle-counter";
 import { AttendanceBoard } from "@/components/session/attendance-board";
 import { ExtraFeeWidget } from "@/components/session/extra-fee-widget";
 import { ExtendDurationWidget } from "@/components/session/extend-duration-widget";
+import { ManageSessionDialog } from "@/components/session/manage-session-dialog";
 import { formatVND } from "@/lib/utils";
 import { updateSessionStatus } from "@/server/actions/session";
 import { 
@@ -169,6 +170,18 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
             {/* Leader Actions */}
             {isLeader && (
               <div className="flex flex-wrap items-center gap-2">
+                {/* Quản lý Sửa & Xóa Buổi Đánh */}
+                <ManageSessionDialog
+                  sessionId={session.id}
+                  clubId={session.clubId}
+                  initialCourtName={session.courtName}
+                  initialStartTime={session.startTime.toISOString()}
+                  initialDurationHours={durationHours}
+                  initialCourtFee={session.courtFee}
+                  initialOtherFee={session.otherFee}
+                  sessionStatus={session.status}
+                />
+
                 {/* Gia hạn giờ đánh (Tối đa 1 lần) */}
                 <ExtendDurationWidget
                   sessionId={session.id}

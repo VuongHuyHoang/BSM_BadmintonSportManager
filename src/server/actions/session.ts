@@ -97,13 +97,160 @@ export async function createSession(clubId: string, formData: FormData) {
   }
 }
 
+export async function editSession(sessionId: string, formData: FormData) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const badmSession = await db.badmintonSession.findUnique({
+    where: { id: sessionId },
+  });
+  if (!badmSession) {
+    return { success: false, error: "Không tìm thấy buổi đánh." };
+  }
+
+  const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
+  if (!isLeader) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền chỉnh sửa buổi đánh." };
+  }
+
+  const courtName = (formData.get("courtName") as string)?.trim() || badmSession.courtName;
+  const startTimeStr = formData.get("startTime") as string;
+  const durationHours = parseFloat((formData.get("durationHours") as string) || "2");
+  const courtFee = parseInt((formData.get("courtFee") as string) || String(badmSession.courtFee), 10);
+  const otherFee = parseInt((formData.get("otherFee") as string) || String(badmSession.otherFee), 10);
+
+  let startTime = badmSession.startTime;
+  let endTime = badmSession.endTime;
+  if (startTimeStr) {
+    startTime = new Date(startTimeStr);
+    endTime = new Date(startTime.getTime() + durationHours * 60 * 60 * 1000);
+  }
+
+  try {
+    await db.badmintonSession.update({
+      where: { id: sessionId },
+      data: {
+        courtName,
+        startTime,
+        endTime,
+        courtFee: isNaN(courtFee) ? badmSession.courtFee : Math.max(0, courtFee),
+        otherFee: isNaN(otherFee) ? badmSession.otherFee : Math.max(0, otherFee),
+      },
+    });
+
+    revalidatePath(`/sessions/${sessionId}`);
+    revalidatePath(`/clubs/${badmSession.clubId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Edit session error:", error);
+    return { success: false, error: "Lỗi cập nhật thông tin buổi đánh." };
+  }
+}
+
+export async function deleteSession(sessionId: string) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const badmSession = await db.badmintonSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      attendances: true,
+    },
+  });
+  if (!badmSession) {
+    return { success: false, error: "Không tìm thấy buổi đánh." };
+  }
+
+  const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
+  if (!isLeader) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền xóa buổi đánh." };
+  }
+
+  // An toàn dữ liệu tài chính: Không cho xóa nếu đã có thành viên thanh toán PAID
+  const hasPaid = badmSession.attendances.some((a) => a.paymentStatus === "PAID");
+  if (hasPaid) {
+    return {
+      success: false,
+      error: "Không thể xóa buổi đánh đã có thành viên thanh toán tiền. Hãy chuyển trạng thái sang Đã Hủy nếu cần.",
+    };
+  }
+
+  try {
+    // Xóa transaction liên quan nếu có
+    await db.transaction.deleteMany({
+      where: { sessionId },
+    });
+
+    // Xóa buổi đánh (các bảng phụ thuộc có onDelete: Cascade)
+    await db.badmintonSession.delete({
+      where: { id: sessionId },
+    });
+
+    revalidatePath(`/clubs/${badmSession.clubId}`);
+    revalidatePath("/dashboard");
+    return { success: true, clubId: badmSession.clubId };
+  } catch (error) {
+    console.error("Delete session error:", error);
+    return { success: false, error: "Lỗi khi xóa buổi đánh." };
+  }
+}
+
+// Helper kiểm tra quyền Admin hoặc Treasurer trong CLB
+async function checkLeaderRole(clubId: string, userId: string): Promise<boolean> {
+  const member = await db.member.findFirst({
+    where: {
+      clubId,
+      userId,
+      role: { in: ["ADMIN", "TREASURER"] },
+      isActive: true,
+    },
+  });
+  return !!member;
+}
+
 export async function toggleCheckIn(
   sessionId: string,
   memberId: string,
   newCheckInStatus: boolean,
   checkInBy: "SELF" | "TREASURER" = "TREASURER"
 ) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
   try {
+    const attendance = await db.sessionAttendance.findUnique({
+      where: {
+        sessionId_memberId: { sessionId, memberId },
+      },
+      include: {
+        member: true,
+        session: true,
+      },
+    });
+
+    if (!attendance) {
+      return { success: false, error: "Không tìm thấy dữ liệu điểm danh." };
+    }
+
+    if (checkInBy === "SELF") {
+      // Tự điểm danh: chỉ được thao tác trên tài khoản của chính mình
+      if (attendance.member.userId !== sessionUser.user.id) {
+        return { success: false, error: "Bạn chỉ có thể tự điểm danh cho tài khoản của chính mình." };
+      }
+    } else {
+      // Thủ quỹ / Admin điểm danh hộ: phải có vai trò Leader
+      const isLeader = await checkLeaderRole(attendance.session.clubId, sessionUser.user.id);
+      if (!isLeader) {
+        return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền điểm danh hộ." };
+      }
+    }
+
     await db.sessionAttendance.update({
       where: {
         sessionId_memberId: { sessionId, memberId },
@@ -125,7 +272,22 @@ export async function toggleCheckIn(
 }
 
 export async function addMemberToSession(sessionId: string, memberId: string) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
   try {
+    const badmSession = await db.badmintonSession.findUnique({ where: { id: sessionId } });
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
+    if (!isLeader) {
+      return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền thêm hội viên vào buổi đánh." };
+    }
+
     const existing = await db.sessionAttendance.findUnique({
       where: {
         sessionId_memberId: { sessionId, memberId },
@@ -158,12 +320,83 @@ export async function addMemberToSession(sessionId: string, memberId: string) {
   }
 }
 
+// Chức năng cho phép thành viên tự đăng ký tham gia buổi đánh
+export async function joinSession(sessionId: string) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập để tham gia buổi đánh." };
+  }
+
+  const currentUserId = sessionUser.user.id;
+
+  try {
+    const badmSession = await db.badmintonSession.findUnique({
+      where: { id: sessionId },
+      include: { club: { include: { members: true } } },
+    });
+
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    // Kiểm tra user có là thành viên hoạt động trong CLB này không
+    const member = badmSession.club.members.find(
+      (m) => m.userId === currentUserId && m.isActive
+    );
+
+    if (!member) {
+      return { success: false, error: "Bạn chưa là thành viên của CLB này." };
+    }
+
+    const existing = await db.sessionAttendance.findUnique({
+      where: {
+        sessionId_memberId: { sessionId, memberId: member.id },
+      },
+    });
+
+    if (existing) {
+      await db.sessionAttendance.update({
+        where: { id: existing.id },
+        data: { isCheckedIn: true, checkInBy: "SELF" },
+      });
+    } else {
+      await db.sessionAttendance.create({
+        data: {
+          sessionId,
+          memberId: member.id,
+          isCheckedIn: true,
+          checkInBy: "SELF",
+          paymentStatus: member.membershipType === "FULL_MONTHLY" ? "COVERED_BY_SUBSCRIPTION" : "UNPAID",
+        },
+      });
+    }
+
+    revalidatePath(`/sessions/${sessionId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/profile");
+    return { success: true };
+  } catch (error) {
+    console.error("Join session error:", error);
+    return { success: false, error: "Lỗi khi đăng ký tham gia buổi đánh." };
+  }
+}
+
 export async function addQuickGuestToSession(
   sessionId: string,
   clubId: string,
   displayName: string,
   phone?: string
 ) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
+  const isLeader = await checkLeaderRole(clubId, sessionUser.user.id);
+  if (!isLeader) {
+    return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền thêm khách vãng lai." };
+  }
+
   try {
     // 1. Tạo Member loại GUEST trong CLB
     const guestMember = await db.member.create({
@@ -198,22 +431,37 @@ export async function addQuickGuestToSession(
 }
 
 export async function updateShuttleCount(sessionId: string, delta: number) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
   try {
+    const badmSession = await db.badmintonSession.findUnique({
+      where: { id: sessionId },
+      include: { club: true },
+    });
+
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
+    if (!isLeader) {
+      return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền cập nhật số quả cầu." };
+    }
+
     let log = await db.shuttleLog.findFirst({
       where: { sessionId },
     });
 
     if (!log) {
-      const session = await db.badmintonSession.findUnique({
-        where: { id: sessionId },
-        include: { club: true },
-      });
       log = await db.shuttleLog.create({
         data: {
           sessionId,
           brand: "Tiêu chuẩn CLB",
           quantity: 0,
-          unitPrice: session?.club.defaultShuttlePrice || 25000,
+          unitPrice: badmSession.club.defaultShuttlePrice || 25000,
           totalAmount: 0,
         },
       });
@@ -239,7 +487,22 @@ export async function updateShuttleCount(sessionId: string, delta: number) {
 }
 
 export async function updateSessionExtraFee(sessionId: string, otherFee: number) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
   try {
+    const badmSession = await db.badmintonSession.findUnique({ where: { id: sessionId } });
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
+    if (!isLeader) {
+      return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền cập nhật phụ phí chung." };
+    }
+
     await db.badmintonSession.update({
       where: { id: sessionId },
       data: {
@@ -259,13 +522,29 @@ export async function updateSessionStatus(
   sessionId: string,
   newStatus: "SCHEDULED" | "ONGOING" | "COMPLETED" | "CANCELLED"
 ) {
+  const sessionUser = await auth();
+  if (!sessionUser?.user?.id) {
+    return { success: false, error: "Bạn cần đăng nhập." };
+  }
+
   try {
+    const badmSession = await db.badmintonSession.findUnique({ where: { id: sessionId } });
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
+    if (!isLeader) {
+      return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền thay đổi trạng thái buổi đánh." };
+    }
+
     await db.badmintonSession.update({
       where: { id: sessionId },
       data: { status: newStatus },
     });
 
     revalidatePath(`/sessions/${sessionId}`);
+    revalidatePath(`/clubs/${badmSession.clubId}`);
     return { success: true };
   } catch (error) {
     console.error("Update session status error:", error);
@@ -596,83 +875,129 @@ export async function calculateAndSaveSessionFees(
   const rawSharedExtraShare = otherSharedFee / totalPresent;
   const rawCourtShare = courtFee / totalPresent;
 
-  // Cập nhật tất cả người chơi song song (Parallel Promise.all) để tối ưu thời gian phản hồi
-  await Promise.all(
-    badmSession.attendances.map(async (attendance) => {
-      // Nếu vắng mặt:
-      if (!attendance.isCheckedIn) {
-        return db.sessionAttendance.update({
-          where: { id: attendance.id },
-          data: {
-            courtFeeShare: 0,
-            shuttleFeeShare: 0,
-            extraFeeShare: 0,
-            totalAmount: 0,
-            paymentStatus: "COVERED_BY_SUBSCRIPTION",
-          },
-        });
-      }
+  // Chuẩn bị danh sách cập nhật đồng thời trong transaction
+  let totalBilled = 0;
+  let totalPersonalExtraAll = 0;
 
-      // Tính phụ phí riêng (nước, quấn cán, tất...)
-      const personalExtra = attendance.extraItems.reduce((acc, curr) => acc + curr.totalPrice, 0);
-      const membershipType = attendance.member.membershipType;
-
-      let courtFeeShare = 0;
-      let shuttleFeeShare = 0;
-      let extraFeeShare = personalExtra;
-      let totalAmount = 0;
-
-      if (membershipType === "FULL_MONTHLY") {
-        // Gói tháng trọn gói: sân = 0, cầu = 0, chỉ chịu phụ phí riêng
-        courtFeeShare = 0;
-        shuttleFeeShare = 0;
-        extraFeeShare = personalExtra;
-        totalAmount = personalExtra;
-      } else if (membershipType === "COURT_ONLY_MONTHLY") {
-        // Gói tháng chỉ sân: sân = 0, cầu chia đều + phụ phí chung chia đều + phụ phí riêng
-        courtFeeShare = 0;
-        shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
-        const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
-        extraFeeShare = sharedExtraRounded + personalExtra;
-        totalAmount = roundFee(shuttleFeeShare + extraFeeShare, clubRounding);
-      } else {
-        // Đóng theo buổi hoặc Khách vãng lai (PAY_PER_SESSION / GUEST)
-        if (guestFixedFee && guestFixedFee > 0 && (membershipType === "GUEST" || membershipType === "PAY_PER_SESSION")) {
-          // Áp dụng giá cố định cho khách
-          courtFeeShare = guestFixedFee;
-          shuttleFeeShare = 0;
-          extraFeeShare = personalExtra;
-          totalAmount = guestFixedFee + personalExtra;
-        } else {
-          // Chia đều chuẩn
-          courtFeeShare = roundFee(rawCourtShare, clubRounding);
-          shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
-          const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
-          extraFeeShare = sharedExtraRounded + personalExtra;
-          totalAmount = roundFee(courtFeeShare + shuttleFeeShare + extraFeeShare, clubRounding);
-        }
-      }
-
-      // Trạng thái thanh toán
-      let newPaymentStatus = attendance.paymentStatus;
-      if (totalAmount === 0) {
-        newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
-      } else if (attendance.paymentStatus === "COVERED_BY_SUBSCRIPTION") {
-        newPaymentStatus = "UNPAID";
-      }
-
+  const updateOperations = badmSession.attendances.map((attendance) => {
+    // Nếu vắng mặt:
+    if (!attendance.isCheckedIn) {
       return db.sessionAttendance.update({
         where: { id: attendance.id },
         data: {
-          courtFeeShare,
-          shuttleFeeShare,
-          extraFeeShare,
-          totalAmount,
-          paymentStatus: newPaymentStatus,
+          courtFeeShare: 0,
+          shuttleFeeShare: 0,
+          extraFeeShare: 0,
+          totalAmount: 0,
+          paymentStatus: "COVERED_BY_SUBSCRIPTION",
         },
       });
-    })
-  );
+    }
+
+    // Tính phụ phí riêng (nước, quấn cán, tất...)
+    const personalExtra = attendance.extraItems.reduce((acc, curr) => acc + curr.totalPrice, 0);
+    totalPersonalExtraAll += personalExtra;
+    const membershipType = attendance.member.membershipType;
+
+    let courtFeeShare = 0;
+    let shuttleFeeShare = 0;
+    let extraFeeShare = personalExtra;
+    let totalAmount = 0;
+
+    if (membershipType === "FULL_MONTHLY") {
+      // Gói tháng trọn gói: sân = 0, cầu = 0, chỉ chịu phụ phí riêng
+      courtFeeShare = 0;
+      shuttleFeeShare = 0;
+      extraFeeShare = personalExtra;
+      totalAmount = personalExtra;
+    } else if (membershipType === "COURT_ONLY_MONTHLY") {
+      // Gói tháng chỉ sân: sân = 0, cầu chia đều + phụ phí chung chia đều + phụ phí riêng
+      courtFeeShare = 0;
+      shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
+      const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
+      extraFeeShare = sharedExtraRounded + personalExtra;
+      totalAmount = roundFee(shuttleFeeShare + extraFeeShare, clubRounding);
+    } else {
+      // Đóng theo buổi hoặc Khách vãng lai (PAY_PER_SESSION / GUEST)
+      if (guestFixedFee && guestFixedFee > 0 && (membershipType === "GUEST" || membershipType === "PAY_PER_SESSION")) {
+        // Áp dụng giá cố định cho khách
+        courtFeeShare = guestFixedFee;
+        shuttleFeeShare = 0;
+        extraFeeShare = personalExtra;
+        totalAmount = guestFixedFee + personalExtra;
+      } else {
+        // Chia đều chuẩn
+        courtFeeShare = roundFee(rawCourtShare, clubRounding);
+        shuttleFeeShare = roundFee(rawShuttleShare, clubRounding);
+        const sharedExtraRounded = roundFee(rawSharedExtraShare, clubRounding);
+        extraFeeShare = sharedExtraRounded + personalExtra;
+        totalAmount = roundFee(courtFeeShare + shuttleFeeShare + extraFeeShare, clubRounding);
+      }
+    }
+
+    totalBilled += totalAmount;
+
+    // Trạng thái thanh toán
+    let newPaymentStatus = attendance.paymentStatus;
+    if (totalAmount === 0) {
+      newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
+    } else if (attendance.paymentStatus === "COVERED_BY_SUBSCRIPTION") {
+      newPaymentStatus = "UNPAID";
+    }
+
+    return db.sessionAttendance.update({
+      where: { id: attendance.id },
+      data: {
+        courtFeeShare,
+        shuttleFeeShare,
+        extraFeeShare,
+        totalAmount,
+        paymentStatus: newPaymentStatus,
+      },
+    });
+  });
+
+  // Thực thi toàn bộ trong atomic transaction
+  await db.$transaction(updateOperations);
+
+  // Tự động hạch toán tiền dôi dư vào Sổ Quỹ (Auto Surplus Accrual)
+  // Tổng chi phí thực tế phát sinh của buổi đánh
+  const actualCost = courtFee + totalShuttleCost + otherSharedFee + totalPersonalExtraAll;
+  const surplus = totalBilled - actualCost;
+
+  if (surplus > 0) {
+    try {
+      const existingTx = await db.transaction.findFirst({
+        where: {
+          sessionId,
+          category: "SESSION_FEE",
+        },
+      });
+
+      if (existingTx) {
+        await db.transaction.update({
+          where: { id: existingTx.id },
+          data: {
+            amount: surplus,
+            description: `Dôi dư làm tròn buổi đánh ${badmSession.courtName}`,
+          },
+        });
+      } else {
+        await db.transaction.create({
+          data: {
+            clubId: badmSession.clubId,
+            sessionId,
+            type: "INCOME",
+            category: "SESSION_FEE",
+            amount: surplus,
+            description: `Dôi dư làm tròn buổi đánh ${badmSession.courtName}`,
+          },
+        });
+      }
+    } catch (txErr) {
+      console.warn("Auto surplus transaction error (non-fatal):", txErr);
+    }
+  }
 
   revalidatePath(`/sessions/${sessionId}`);
   revalidatePath(`/sessions/${sessionId}/split`);

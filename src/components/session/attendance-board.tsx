@@ -6,6 +6,7 @@ import {
   toggleCheckIn, 
   addMemberToSession, 
   addQuickGuestToSession,
+  joinSession,
 } from "@/server/actions/session";
 import { 
   ExtraFeeModal, 
@@ -46,6 +47,7 @@ interface ClubMemberItem {
   id: string;
   displayName: string;
   membershipType: string;
+  userId?: string | null;
 }
 
 interface AttendanceBoardProps {
@@ -75,6 +77,7 @@ export function AttendanceBoard({
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestLoading, setGuestLoading] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
 
   // State mở cửa sổ Popup Phụ Phí cho thành viên
   const [selectedModalAttendee, setSelectedModalAttendee] = useState<AttendeeItem | null>(null);
@@ -83,6 +86,20 @@ export function AttendanceBoard({
   const myAttendance = currentUserId
     ? localAttendees.find((a) => a.member.userId === currentUserId)
     : null;
+
+  // Tìm thông tin hội viên của user trong CLB (dù chưa vào buổi đánh)
+  const myClubMembership = currentUserId
+    ? allClubMembers.find((m) => m.userId === currentUserId)
+    : null;
+
+  const handleSelfJoin = async () => {
+    setJoinLoading(true);
+    const res = await joinSession(sessionId);
+    setJoinLoading(false);
+    if (!res.success) {
+      alert(res.error || "Lỗi khi đăng ký tham gia buổi đánh.");
+    }
+  };
 
   // Lọc ra các hội viên CLB chưa có trong danh sách buổi đánh
   const attendeeMemberIds = new Set(localAttendees.map((a) => a.memberId));
@@ -163,7 +180,36 @@ export function AttendanceBoard({
         </div>
       </div>
 
-      {/* 2. Self Check-in Banner (Nếu người dùng đang đăng nhập và chưa check-in) */}
+      {/* 2. Self Join Banner (Nếu người dùng là thành viên CLB nhưng chưa có trong danh sách buổi đánh) */}
+      {myClubMembership && !myAttendance && (
+        <div className="bg-[#e9ccff] border border-black rounded-2xl p-4 sm:p-5 shadow-[4px_4px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-[#ffd731]" />
+            </div>
+            <div>
+              <span className="text-sm font-black uppercase text-black block leading-tight">
+                Bạn muốn tham gia buổi đánh này?
+              </span>
+              <span className="text-xs font-bold text-zinc-800">
+                Bấm nút đăng ký để có tên trong danh sách điểm danh và cùng chia tiền sân nhé!
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={joinLoading}
+            onClick={handleSelfJoin}
+            className="min-h-[44px] px-6 py-2.5 rounded-full text-xs font-black uppercase bg-black text-white border border-black shadow-[2px_2px_0px_#55db9c] hover:bg-zinc-800 active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
+          >
+            <CheckCircle2 className="w-4 h-4 text-[#55db9c]" />
+            <span>{joinLoading ? "Đang Ghi Nhận..." : "Đăng Ký Tham Gia"}</span>
+          </button>
+        </div>
+      )}
+
+      {/* 2b. Self Check-in Banner (Nếu người dùng đang đăng nhập và chưa check-in) */}
       {myAttendance && !myAttendance.isCheckedIn && (
         <div className="bg-[#ffd731] border border-black rounded-2xl p-4 sm:p-5 shadow-[4px_4px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse">
           <div className="flex items-center gap-3">

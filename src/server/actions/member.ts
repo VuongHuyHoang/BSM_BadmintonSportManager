@@ -170,15 +170,17 @@ export async function removeMember(memberId: string) {
   }
 
   try {
-    await db.member.delete({
+    // Soft-delete: Đặt isActive = false để bảo toàn toàn bộ lịch sử điểm danh và nợ cũ
+    await db.member.update({
       where: { id: memberId },
+      data: { isActive: false },
     });
 
     revalidatePath(`/clubs/${targetMember.clubId}`);
     return { success: true };
   } catch (error) {
     console.error("Remove member error:", error);
-    return { success: false, error: "Lỗi khi xóa hội viên." };
+    return { success: false, error: "Lỗi khi xóa hội viên khỏi CLB." };
   }
 }
 
