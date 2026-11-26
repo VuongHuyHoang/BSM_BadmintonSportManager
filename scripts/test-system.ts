@@ -195,7 +195,7 @@ const mockAttendances = [
 
 // Giả lập chạy lại chia bill
 const recalculatedAttendances = mockAttendances.map((a) => {
-  const newCalculatedTotal = 55000; // Tiền tăng do phát sinh thêm chi phí
+  const newCalculatedTotal: number = 55000; // Tiền tăng do phát sinh thêm chi phí
   let newPaymentStatus = a.paymentStatus;
   if (a.paymentStatus === "PAID") {
     newPaymentStatus = "PAID"; // Bảo toàn PAID!
