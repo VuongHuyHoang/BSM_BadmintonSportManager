@@ -226,6 +226,24 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
                     </button>
                   </form>
                 )}
+
+                {session.status === "COMPLETED" && (
+                  <form
+                    action={async () => {
+                      "use server";
+                      await updateSessionStatus(session.id, "ONGOING");
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-full text-xs font-black uppercase bg-[#f1f3f6] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-zinc-200 transition-all flex items-center gap-1.5"
+                      title="Mở lại buổi đánh nếu cần điều chỉnh số cầu hoặc điểm danh (kho cầu sẽ tự hoàn trả)"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#5c4ade]" />
+                      <span>Mở Lại Buổi Đánh</span>
+                    </button>
+                  </form>
+                )}
               </div>
             )}
           </div>
@@ -243,6 +261,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
               currentUserId={sessionUser?.user?.id}
               isLeader={isLeader}
               maxAttendees={session.maxAttendees}
+              sessionStatus={session.status}
             />
 
             {/* Bảng Bốc Thăm & Sắp Trận Live Trên Sân */}
@@ -268,6 +287,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
               initialQuantity={shuttleLog.quantity}
               unitPrice={shuttleLog.unitPrice}
               isLeader={isLeader}
+              sessionStatus={session.status}
             />
 
             {/* Phụ Phí Nước Uống */}
@@ -275,6 +295,7 @@ export default async function SessionDetailPage({ params }: SessionPageProps) {
               sessionId={session.id}
               initialOtherFee={session.otherFee}
               isLeader={isLeader}
+              sessionStatus={session.status}
             />
 
             {/* Live Cost Summary Card */}

@@ -62,6 +62,7 @@ interface AttendanceBoardProps {
   currentUserId?: string | null;
   isLeader: boolean;
   maxAttendees?: number;
+  sessionStatus?: string;
 }
 
 export function AttendanceBoard({
@@ -72,8 +73,10 @@ export function AttendanceBoard({
   currentUserId,
   isLeader,
   maxAttendees = 0,
+  sessionStatus,
 }: AttendanceBoardProps) {
   const [localAttendees, setLocalAttendees] = useState(attendees);
+  const isCompleted = sessionStatus === "COMPLETED";
   useEffect(() => {
     setLocalAttendees(attendees);
   }, [attendees]);
@@ -109,6 +112,7 @@ export function AttendanceBoard({
     : null;
 
   const handleSelfJoin = async () => {
+    if (isCompleted) return;
     setJoinLoading(true);
     const res = await joinSession(sessionId);
     setJoinLoading(false);
@@ -118,6 +122,7 @@ export function AttendanceBoard({
   };
 
   const handleLeave = async (targetMemberId?: string) => {
+    if (isCompleted) return;
     const isSelf = !targetMemberId || (myAttendance && targetMemberId === myAttendance.memberId);
     if (!confirm(isSelf ? "Bạn có chắc chắn muốn hủy đăng ký buổi đánh này?" : "Xóa người này khỏi buổi đánh?")) return;
 
@@ -138,6 +143,10 @@ export function AttendanceBoard({
   const checkedInCount = localAttendees.filter((a) => a.isCheckedIn).length;
 
   const handleToggle = async (memberId: string, currentStatus: boolean, isSelf: boolean) => {
+    if (isCompleted) {
+      alert("Buổi đánh đã kết thúc, không thể thay đổi điểm danh.");
+      return;
+    }
     const nextStatus = !currentStatus;
     // Optimistic UI: Phản hồi tức thời 0ms trên màn hình
     setLocalAttendees((prev) =>
@@ -226,7 +235,7 @@ export function AttendanceBoard({
       </div>
 
       {/* 2. Self Join Banner (Nếu người dùng là thành viên CLB nhưng chưa có trong danh sách buổi đánh) */}
-      {myClubMembership && !myAttendance && (
+      {myClubMembership && !myAttendance && !isCompleted && (
         <div className="bg-[#e9ccff] border border-black rounded-2xl p-4 sm:p-5 shadow-[4px_4px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0">
@@ -255,7 +264,7 @@ export function AttendanceBoard({
       )}
 
       {/* 2b. Self Check-in Banner (Nếu người dùng đang đăng nhập và chưa check-in) */}
-      {myAttendance && !myAttendance.isCheckedIn && (
+      {myAttendance && !myAttendance.isCheckedIn && !isCompleted && (
         <div className="bg-[#ffd731] border border-black rounded-2xl p-4 sm:p-5 shadow-[4px_4px_0px_#000000] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-black text-white flex items-center justify-center shrink-0">
@@ -284,7 +293,7 @@ export function AttendanceBoard({
       )}
 
       {/* 3. Action Row for Leaders: Add Existing Member / Add Guest */}
-      {isLeader && (
+      {isLeader && !isCompleted && (
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Dropdown thêm hội viên CLB chưa vào buổi */}
           {availableClubMembers.length > 0 && (
@@ -527,7 +536,7 @@ export function AttendanceBoard({
                 )}
 
                 {/* Nút hủy đăng ký hoặc Leader xóa người */}
-                {(isMe || isLeader) && a.paymentStatus !== "PAID" && (
+                {(isMe || isLeader) && !isCompleted && a.paymentStatus !== "PAID" && (
                   <button
                     type="button"
                     disabled={leaveLoadingId === a.memberId}
@@ -555,6 +564,7 @@ export function AttendanceBoard({
             localAttendees.find((x) => x.id === selectedModalAttendee.id)?.extraItems || []
           }
           isLeader={isLeader}
+          sessionStatus={sessionStatus}
         />
       )}
     </div>

@@ -33,6 +33,7 @@ interface ExtraFeeModalProps {
   displayName: string;
   extraItems: ExtraItem[];
   isLeader: boolean;
+  sessionStatus?: string;
 }
 
 // Gom nhóm các sản phẩm có tên giống nhau (không phân biệt hoa/thường)
@@ -78,11 +79,13 @@ export function ExtraFeeModal({
   displayName,
   extraItems = [],
   isLeader,
+  sessionStatus,
 }: ExtraFeeModalProps) {
   const [selectedQty, setSelectedQty] = useState<number>(1);
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState<number>(15000);
   const [loading, setLoading] = useState(false);
+  const isCompleted = sessionStatus === "COMPLETED";
 
   if (!isOpen) return null;
 
@@ -91,7 +94,7 @@ export function ExtraFeeModal({
 
   // Thêm từ preset với ô số lượng đã chọn
   const handleAddPreset = async (name: string, unitPrice: number) => {
-    if (loading) return;
+    if (loading || isCompleted) return;
     setLoading(true);
     await addExtraItemToAttendance(attendanceId, name, selectedQty, unitPrice);
     setLoading(false);
@@ -100,7 +103,7 @@ export function ExtraFeeModal({
   // Thêm món tuỳ chỉnh
   const handleAddCustom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customName.trim() || loading) return;
+    if (!customName.trim() || loading || isCompleted) return;
     setLoading(true);
     await addExtraItemToAttendance(attendanceId, customName, selectedQty, customPrice);
     setLoading(false);
@@ -109,7 +112,7 @@ export function ExtraFeeModal({
 
   // Tăng/giảm số lượng
   const handleQuantityDelta = async (primaryId: string, delta: number) => {
-    if (loading) return;
+    if (loading || isCompleted) return;
     setLoading(true);
     await updateExtraItemQuantity(primaryId, delta);
     setLoading(false);
@@ -117,7 +120,7 @@ export function ExtraFeeModal({
 
   // Xóa toàn bộ món này
   const handleRemoveAllForGroup = async (allIds: string[]) => {
-    if (loading) return;
+    if (loading || isCompleted) return;
     setLoading(true);
     for (const id of allIds) {
       await removeExtraItemFromAttendance(id);

@@ -171,6 +171,46 @@ export async function removeMember(memberId: string) {
     return { success: false, error: "Không thể xóa Trưởng nhóm." };
   }
 
+  // 1. Kiểm tra nếu chính hội viên này còn nợ chưa thanh toán
+  const unpaidAttendance = await db.sessionAttendance.findFirst({
+    where: {
+      memberId,
+      paymentStatus: "UNPAID",
+    },
+    include: { session: true },
+  });
+
+  if (unpaidAttendance) {
+    return {
+      success: false,
+      error: `Hội viên này vẫn còn nợ chưa thanh toán tại buổi đánh "${unpaidAttendance.session.courtName}". Vui lòng kiểm tra và xử lý công nợ trước khi xóa khỏi CLB.`,
+    };
+  }
+
+  // 2. Kiểm tra nếu hội viên này đang bảo lãnh cho khách vãng lai còn nợ
+  const sponsoredGuestWithDebt = await db.member.findFirst({
+    where: {
+      sponsorMemberId: memberId,
+      isActive: true,
+      attendances: {
+        some: { paymentStatus: "UNPAID" },
+      },
+    },
+    include: {
+      attendances: {
+        where: { paymentStatus: "UNPAID" },
+        include: { session: true },
+      },
+    },
+  });
+
+  if (sponsoredGuestWithDebt) {
+    return {
+      success: false,
+      error: `Hội viên này đang bảo lãnh cho khách vãng lai "${sponsoredGuestWithDebt.displayName}" vẫn còn nợ tiền buổi đánh. Vui lòng xử lý công nợ của khách trước khi xóa người bảo lãnh.`,
+    };
+  }
+
   try {
     // Soft-delete: Đặt isActive = false để bảo toàn toàn bộ lịch sử điểm danh và nợ cũ
     await db.member.update({

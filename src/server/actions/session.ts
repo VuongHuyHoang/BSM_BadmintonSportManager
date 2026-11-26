@@ -244,6 +244,10 @@ export async function toggleCheckIn(
       return { success: false, error: "Không tìm thấy dữ liệu điểm danh." };
     }
 
+    if (attendance.session.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt sổ, không thể thay đổi điểm danh." };
+    }
+
     if (checkInBy === "SELF") {
       // Tự điểm danh: chỉ được thao tác trên tài khoản của chính mình
       if (attendance.member.userId !== sessionUser.user.id) {
@@ -287,6 +291,10 @@ export async function addMemberToSession(sessionId: string, memberId: string) {
     const badmSession = await db.badmintonSession.findUnique({ where: { id: sessionId } });
     if (!badmSession) {
       return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt sổ, không thể thêm hội viên mới." };
     }
 
     const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
@@ -356,6 +364,10 @@ export async function joinSession(sessionId: string) {
 
     if (!badmSession) {
       return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc, không thể đăng ký tham gia." };
     }
 
     // Kiểm tra user có là thành viên hoạt động trong CLB này không
@@ -437,6 +449,10 @@ export async function leaveSession(sessionId: string, targetMemberId?: string) {
       return { success: false, error: "Không tìm thấy buổi đánh." };
     }
 
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt sổ, không thể rời buổi đánh." };
+    }
+
     const currentMember = badmSession.club.members.find((m) => m.userId === currentUserId);
     const isLeader = currentMember?.role === "ADMIN" || currentMember?.role === "TREASURER";
 
@@ -510,6 +526,16 @@ export async function addQuickGuestToSession(
   }
 
   try {
+    const badmSession = await db.badmintonSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!badmSession) {
+      return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt sổ, không thể thêm khách vãng lai." };
+    }
+
     // 1. Tạo Member loại GUEST trong CLB kèm người bảo lãnh nếu có
     const guestMember = await db.member.create({
       data: {
@@ -558,6 +584,10 @@ export async function updateShuttleCount(sessionId: string, delta: number) {
 
     if (!badmSession) {
       return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể điều chỉnh số lượng cầu. Nếu cần sửa, hãy mở lại buổi đánh." };
     }
 
     const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
@@ -612,6 +642,14 @@ export async function updateSessionExtraFee(sessionId: string, otherFee: number)
       return { success: false, error: "Không tìm thấy buổi đánh." };
     }
 
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể điều chỉnh số lượng cầu. Nếu cần sửa, hãy mở lại buổi đánh." };
+    }
+
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể điều chỉnh phụ phí chung." };
+    }
+
     const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
     if (!isLeader) {
       return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền cập nhật phụ phí chung." };
@@ -647,6 +685,10 @@ export async function updateSessionStatus(
       return { success: false, error: "Không tìm thấy buổi đánh." };
     }
 
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể điều chỉnh số lượng cầu. Nếu cần sửa, hãy mở lại buổi đánh." };
+    }
+
     const isLeader = await checkLeaderRole(badmSession.clubId, sessionUser.user.id);
     if (!isLeader) {
       return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền thay đổi trạng thái buổi đánh." };
@@ -658,7 +700,22 @@ export async function updateSessionStatus(
       data: { status: newStatus },
     });
 
-    // Nếu buổi đánh chuyển sang COMPLETED lần đầu, tự động trừ số lượng quả cầu đã tiêu thụ vào kho CLB
+    // 1. Nếu buổi đánh chuyển từ COMPLETED sang trạng thái khác (mở lại buổi đánh) -> Tự động hoàn trả tồn kho cầu
+    if (previousStatus === "COMPLETED" && newStatus !== "COMPLETED") {
+      const shuttleLog = await db.shuttleLog.findFirst({
+        where: { sessionId },
+      });
+      if (shuttleLog && shuttleLog.quantity > 0) {
+        await db.club.update({
+          where: { id: badmSession.clubId },
+          data: {
+            shuttleStock: { increment: shuttleLog.quantity },
+          },
+        });
+      }
+    }
+
+    // 2. Nếu buổi đánh chuyển sang COMPLETED lần đầu hoặc từ trạng thái khác sang, tự động trừ số lượng quả cầu đã tiêu thụ vào kho CLB
     if (newStatus === "COMPLETED" && previousStatus !== "COMPLETED") {
       const shuttleLog = await db.shuttleLog.findFirst({
         where: { sessionId },
@@ -703,6 +760,10 @@ export async function extendSessionDuration(
 
   if (!existing) {
     return { success: false, error: "Không tìm thấy buổi đánh." };
+  }
+
+  if (existing.status === "COMPLETED") {
+    return { success: false, error: "Buổi đánh đã kết thúc, không thể gia hạn thêm giờ." };
   }
 
   const actor = existing.club.members.find((m) => m.userId === session.user?.id);
@@ -764,6 +825,10 @@ export async function addExtraItemToAttendance(
 
   if (!attendance) {
     return { success: false, error: "Không tìm thấy thông tin người tham gia." };
+  }
+
+  if (attendance.session.status === "COMPLETED") {
+    return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể thêm phụ phí riêng." };
   }
 
   // Check leader role
@@ -849,6 +914,10 @@ export async function updateExtraItemQuantity(itemId: string, delta: number) {
     return { success: false, error: "Không tìm thấy mục phụ phí." };
   }
 
+  if (item.attendance.session.status === "COMPLETED") {
+    return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể thay đổi phụ phí." };
+  }
+
   const actor = item.attendance.session.club.members.find((m) => m.userId === session.user?.id);
   if (!actor || (actor.role !== "ADMIN" && actor.role !== "TREASURER")) {
     return { success: false, error: "Chỉ Trưởng nhóm hoặc Thủ quỹ mới có quyền chỉnh sửa." };
@@ -915,6 +984,10 @@ export async function removeExtraItemFromAttendance(itemId: string) {
 
   if (!item) {
     return { success: false, error: "Không tìm thấy mục phụ phí." };
+  }
+
+  if (item.attendance.session.status === "COMPLETED") {
+    return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể thay đổi phụ phí." };
   }
 
   const actor = item.attendance.session.club.members.find((m) => m.userId === session.user?.id);
@@ -1067,9 +1140,11 @@ export async function calculateAndSaveSessionFees(
 
     totalBilled += totalAmount;
 
-    // Trạng thái thanh toán
+    // Trạng thái thanh toán: nếu người này đã nộp tiền (PAID), giữ nguyên trạng thái PAID và thông tin đối soát
     let newPaymentStatus = attendance.paymentStatus;
-    if (totalAmount === 0) {
+    if (attendance.paymentStatus === "PAID") {
+      newPaymentStatus = "PAID";
+    } else if (totalAmount === 0) {
       newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
     } else if (attendance.paymentStatus === "COVERED_BY_SUBSCRIPTION") {
       newPaymentStatus = "UNPAID";
@@ -1083,6 +1158,8 @@ export async function calculateAndSaveSessionFees(
         extraFeeShare,
         totalAmount,
         paymentStatus: newPaymentStatus,
+        paidAt: attendance.paymentStatus === "PAID" ? attendance.paidAt : undefined,
+        confirmedBy: attendance.paymentStatus === "PAID" ? attendance.confirmedBy : undefined,
       },
     });
   });
@@ -1257,6 +1334,10 @@ export async function recordMatch(sessionId: string, playerMemberIds: string[]) 
     });
     if (!badmSession) {
       return { success: false, error: "Không tìm thấy buổi đánh." };
+    }
+
+    if (badmSession.status === "COMPLETED") {
+      return { success: false, error: "Buổi đánh đã kết thúc và chốt số liệu. Không thể điều chỉnh số lượng cầu. Nếu cần sửa, hãy mở lại buổi đánh." };
     }
 
     // Tăng matchesPlayed cho những thành viên tham gia trận

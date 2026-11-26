@@ -9,19 +9,23 @@ interface ExtraFeeWidgetProps {
   sessionId: string;
   initialOtherFee: number;
   isLeader: boolean;
+  sessionStatus?: string;
 }
 
 export function ExtraFeeWidget({
   sessionId,
   initialOtherFee,
   isLeader,
+  sessionStatus,
 }: ExtraFeeWidgetProps) {
   const [fee, setFee] = useState(initialOtherFee);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isCompleted = sessionStatus === "COMPLETED";
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCompleted) return;
     setLoading(true);
     await updateSessionExtraFee(sessionId, fee);
     setLoading(false);
@@ -36,13 +40,17 @@ export function ExtraFeeWidget({
           Nước Uống & Phụ Phí Buổi Đánh
         </span>
         {isLeader && !editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-[11px] font-black text-black underline"
-          >
-            Sửa
-          </button>
+          isCompleted ? (
+            <span className="text-[10px] font-black text-zinc-400 uppercase">🔒 Đã chốt sổ</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="text-[11px] font-black text-black underline"
+            >
+              Sửa
+            </button>
+          )
         )}
       </div>
 

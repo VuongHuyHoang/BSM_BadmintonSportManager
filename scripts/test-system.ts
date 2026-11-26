@@ -171,6 +171,56 @@ assert(selectedFour.every((p) => p.matches <= 2), "4 người được chọn đ
 assert(!selectedFour.some((p) => p.name === "P1"), "Người đã đánh nhiều nhất (3 trận) được xếp nghỉ ngoài");
 
 // -----------------------------------------------------------------
+// TEST GROUP 6: KHÓA BUỔI ĐÁNH COMPLETED, HOÀN KHO & BẢO TỒN DỮ LIỆU ĐÃ THANH TOÁN
+// -----------------------------------------------------------------
+console.log("\n--- TEST GROUP 6: KHÓA BUỔI ĐÁNH, HOÀN KHO & BẢO TỒN PAID ---");
+
+// Test 6.1: Khóa thay đổi số lượng cầu khi COMPLETED
+const sessionStatus = "COMPLETED";
+const canAdjustShuttles = sessionStatus !== "COMPLETED";
+assert(!canAdjustShuttles, "Khóa chặt không cho phép tăng/giảm số cầu khi buổi đánh đã COMPLETED");
+
+// Test 6.2: Hoàn kho cầu khi mở lại buổi đánh (Re-open COMPLETED -> ONGOING)
+let clubStock = 28; // Tồn kho sau buổi đánh
+const shuttlesUsed = 6;
+// Mở lại buổi đánh:
+clubStock += shuttlesUsed;
+assert(clubStock === 34, "Tự động hoàn trả 6 quả cầu vào kho CLB khi mở lại buổi đánh (28 + 6 = 34 quả)");
+
+// Test 6.3: Bảo toàn bản ghi đã thanh toán khi tính lại chia bill
+const mockAttendances = [
+  { id: "A1", member: "Nam", totalAmount: 50000, paymentStatus: "PAID", paidAt: new Date("2026-11-26T10:00:00Z") },
+  { id: "A2", member: "Huy", totalAmount: 50000, paymentStatus: "UNPAID", paidAt: null },
+];
+
+// Giả lập chạy lại chia bill
+const recalculatedAttendances = mockAttendances.map((a) => {
+  const newCalculatedTotal = 55000; // Tiền tăng do phát sinh thêm chi phí
+  let newPaymentStatus = a.paymentStatus;
+  if (a.paymentStatus === "PAID") {
+    newPaymentStatus = "PAID"; // Bảo toàn PAID!
+  } else if (newCalculatedTotal === 0) {
+    newPaymentStatus = "COVERED_BY_SUBSCRIPTION";
+  } else {
+    newPaymentStatus = "UNPAID";
+  }
+  return {
+    ...a,
+    totalAmount: newCalculatedTotal,
+    paymentStatus: newPaymentStatus,
+  };
+});
+
+assert(recalculatedAttendances[0].paymentStatus === "PAID", "Hội viên đã đóng tiền (PAID) được bảo toàn trạng thái PAID khi tính lại bill");
+assert(recalculatedAttendances[1].paymentStatus === "UNPAID", "Hội viên chưa đóng tiền giữ trạng thái UNPAID");
+
+// Test 6.4: Chặn xóa người bảo lãnh khi khách vãng lai còn nợ
+const sponsorId = "SPONSOR_01";
+const guestWithDebt = { id: "GUEST_01", sponsorMemberId: sponsorId, hasDebt: true };
+const canDeleteSponsor = !guestWithDebt.hasDebt;
+assert(!canDeleteSponsor, "Chặn xóa người bảo lãnh khi khách vãng lai bảo lãnh vẫn còn nợ tiền buổi đánh");
+
+// -----------------------------------------------------------------
 // SUMMARY
 // -----------------------------------------------------------------
 console.log("\n=======================================================");

@@ -10,6 +10,7 @@ interface ShuttleCounterProps {
   initialQuantity: number;
   unitPrice: number;
   isLeader: boolean;
+  sessionStatus?: string;
 }
 
 export function ShuttleCounter({
@@ -17,15 +18,17 @@ export function ShuttleCounter({
   initialQuantity,
   unitPrice,
   isLeader,
+  sessionStatus,
 }: ShuttleCounterProps) {
   const [quantity, setQuantity] = useState(initialQuantity);
+  const isCompleted = sessionStatus === "COMPLETED";
 
   useEffect(() => {
     setQuantity(initialQuantity);
   }, [initialQuantity]);
 
   const handleUpdate = async (delta: number) => {
-    if (!isLeader) return;
+    if (!isLeader || isCompleted) return;
     const prev = quantity;
     const target = Math.max(0, prev + delta);
     // Optimistic UI: Phản hồi tức thì 0ms
@@ -57,6 +60,12 @@ export function ShuttleCounter({
       </div>
 
       {/* Main Display Counter */}
+      {isCompleted && (
+        <div className="bg-[#fef3c7] border border-black rounded-xl p-2.5 text-center text-xs font-black text-amber-900 mb-3 shadow-[2px_2px_0px_#000000] flex items-center justify-center gap-1.5">
+          <span>🔒 Buổi đánh đã kết thúc & chốt số liệu. Không thể tăng/giảm cầu.</span>
+        </div>
+      )}
+
       <div className="bg-[#f1f3f6] border border-black rounded-2xl p-4 text-center mb-4">
         <span className="text-[11px] font-bold text-zinc-600 uppercase block mb-0.5">
           Tổng số quả đã dùng:
@@ -76,7 +85,7 @@ export function ShuttleCounter({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              disabled={quantity <= 0}
+              disabled={isCompleted || quantity <= 0}
               onClick={() => handleUpdate(-1)}
               className="min-h-[48px] py-2.5 px-4 rounded-xl text-sm font-black uppercase bg-white text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-zinc-100 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000000] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
             >
@@ -86,8 +95,9 @@ export function ShuttleCounter({
 
             <button
               type="button"
+              disabled={isCompleted}
               onClick={() => handleUpdate(1)}
-              className="min-h-[48px] py-2.5 px-4 rounded-xl text-sm font-black uppercase bg-[#55db9c] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#43c487] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000000] transition-all flex items-center justify-center gap-2"
+              className="min-h-[48px] py-2.5 px-4 rounded-xl text-sm font-black uppercase bg-[#55db9c] text-black border border-black shadow-[3px_3px_0px_#000000] hover:bg-[#43c487] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000000] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>+1 Quả Cầu</span>
@@ -98,7 +108,7 @@ export function ShuttleCounter({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              disabled={quantity < 12}
+              disabled={isCompleted || quantity < 12}
               onClick={() => handleUpdate(-12)}
               className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-bold bg-[#f1f3f6] text-zinc-700 border border-black shadow-[2px_2px_0px_#000000] hover:bg-zinc-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
@@ -107,8 +117,9 @@ export function ShuttleCounter({
 
             <button
               type="button"
+              disabled={isCompleted}
               onClick={() => handleUpdate(12)}
-              className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-black uppercase bg-[#e9ccff] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#d8b5ff] transition-all flex items-center justify-center gap-1.5"
+              className="min-h-[44px] py-2 px-3 rounded-xl text-xs font-black uppercase bg-[#e9ccff] text-black border border-black shadow-[2px_2px_0px_#000000] hover:bg-[#d8b5ff] transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
               <Package className="w-3.5 h-3.5" />
               <span>+ 1 Ống (12 quả)</span>
